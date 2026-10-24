@@ -36,8 +36,9 @@ function validateParams(schema) {
   };
 }
 
-module.exports = {
+export {
   validateBody,
   validateQuery,
   validateParams,
 };
+

@@ -1,6 +1,10 @@
-const dotenv = require('dotenv');
-const { z } = require('zod');
-const path = require('path');
+import dotenv from 'dotenv';
+import { z } from 'zod';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables from .env file
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
@@ -78,8 +82,7 @@ try {
   }
 }
 
-module.exports = {
-  env: validatedEnv,
-  validateEnv,
-  envSchema,
-};
+export const env = validatedEnv;
+export { validateEnv, envSchema };
+export default env;
+

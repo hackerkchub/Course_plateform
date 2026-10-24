@@ -33,6 +33,7 @@ function parsePagination(query = {}, defaultLimit = 12, maxLimit = 100) {
   };
 }
 
-module.exports = {
+export {
   parsePagination,
 };
+

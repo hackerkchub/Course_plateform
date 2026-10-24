@@ -1,10 +1,14 @@
-const { describe, it, before, after } = require('node:test');
-const assert = require('node:assert');
-const mysql = require('mysql2/promise');
-const dotenv = require('dotenv');
-const path = require('path');
-const { runMigrations } = require('../migrations/runner');
-const { seedSuperAdmin } = require('../seeds/001_super_admin');
+import { describe, it, before, after } from 'node:test';
+import assert from 'node:assert';
+import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { runMigrations } from '../migrations/runner.js';
+import { seedSuperAdmin } from '../seeds/001_super_admin.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 

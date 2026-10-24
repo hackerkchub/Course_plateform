@@ -1,5 +1,5 @@
-const pino = require('pino');
-const { env } = require('./env');
+import pino from 'pino';
+import { env } from './env.js';
 
 const isDev = env.NODE_ENV === 'development';
 
@@ -48,4 +48,6 @@ const logger = pino({
     : undefined,
 });
 
-module.exports = logger;
+export { logger };
+export default logger;
+

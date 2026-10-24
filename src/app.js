@@ -1,13 +1,13 @@
-const express = require('express');
-const {
+import express from 'express';
+import {
   helmetMiddleware,
   corsMiddleware,
   cookieParserMiddleware,
   generalRateLimiter,
-} = require('./middleware/security');
-const { errorHandler } = require('./middleware/errorHandler');
-const notFoundHandler = require('./middleware/notFound');
-const healthRoutes = require('./routes/health.routes');
+} from './middleware/security.js';
+import { errorHandler } from './middleware/errorHandler.js';
+import notFoundHandler from './middleware/notFound.js';
+import healthRoutes from './routes/health.routes.js';
 
 const app = express();
 
@@ -42,4 +42,6 @@ app.use(notFoundHandler);
 // Centralized error handler
 app.use(errorHandler);
 
-module.exports = app;
+export { app };
+export default app;
+

@@ -1,6 +1,6 @@
-const { ZodError } = require('zod');
-const logger = require('../config/logger');
-const { sendError } = require('../utils/response');
+import { ZodError } from 'zod';
+import logger from '../config/logger.js';
+import { sendError } from '../utils/response.js';
 
 /**
  * Custom application error class
@@ -63,7 +63,9 @@ function errorHandler(err, req, res, next) {
   return sendError(res, 'Internal server error', [], 500);
 }
 
-module.exports = {
+export {
   AppError,
   errorHandler,
 };
+export default errorHandler;
+

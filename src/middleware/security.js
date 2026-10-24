@@ -1,9 +1,8 @@
-const helmet = require('helmet');
-const cors = require('cors');
-const rateLimit = require('express-rate-limit');
-const cookieParser = require('cookie-parser');
-const { env } = require('../config/env');
-const { sendError } = require('../utils/response');
+import helmet from 'helmet';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import { env } from '../config/env.js';
+import { generalRateLimiter } from './rateLimiter.js';
 
 // Security headers
 const helmetMiddleware = helmet({
@@ -33,11 +32,12 @@ const corsMiddleware = cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 });
 
-const { generalRateLimiter } = require('./rateLimiter');
+const cookieParserMiddleware = cookieParser();
 
-module.exports = {
+export {
   helmetMiddleware,
   corsMiddleware,
-  cookieParserMiddleware: cookieParser(),
+  cookieParserMiddleware,
   generalRateLimiter,
 };
+

@@ -61,7 +61,8 @@ function calculateDiscountedPrice(price, offer, now = new Date()) {
   };
 }
 
-module.exports = {
+export {
   isOfferActive,
   calculateDiscountedPrice,
 };
+

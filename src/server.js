@@ -1,7 +1,7 @@
-const app = require('./app');
-const { env } = require('./config/env');
-const logger = require('./config/logger');
-const { closePool } = require('./config/db');
+import app from './app.js';
+import { env } from './config/env.js';
+import logger from './config/logger.js';
+import { closePool } from './config/db.js';
 
 const PORT = env.PORT || 5000;
 
@@ -40,4 +40,6 @@ async function gracefulShutdown(signal) {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-module.exports = server;
+export { server };
+export default server;
+

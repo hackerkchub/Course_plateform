@@ -61,8 +61,9 @@ function sendError(res, message, errors = [], statusCode = 400) {
   return res.status(statusCode).json(responseBody);
 }
 
-module.exports = {
+export {
   sendSuccess,
   sendPaginated,
   sendError,
 };
+

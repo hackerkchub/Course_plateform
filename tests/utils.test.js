@@ -1,10 +1,10 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert');
-const { generateSlug, isValidSlug } = require('../src/utils/slug');
-const { parsePagination } = require('../src/utils/pagination');
-const { calculateDiscountedPrice, isOfferActive } = require('../src/utils/pricing');
-const { validateBody } = require('../src/middleware/validate');
-const { z } = require('zod');
+import { describe, it } from 'node:test';
+import assert from 'node:assert';
+import { generateSlug, isValidSlug } from '../src/utils/slug.js';
+import { parsePagination } from '../src/utils/pagination.js';
+import { calculateDiscountedPrice, isOfferActive } from '../src/utils/pricing.js';
+import { validateBody } from '../src/middleware/validate.js';
+import { z } from 'zod';
 
 describe('Structural Utilities & Shared Infrastructure Tests', () => {
   describe('Slug Utility (Section 19.3)', () => {

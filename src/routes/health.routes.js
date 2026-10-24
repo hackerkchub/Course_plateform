@@ -1,7 +1,7 @@
-const express = require('express');
-const { env } = require('../config/env');
-const { checkDbHealth } = require('../config/db');
-const { sendSuccess } = require('../utils/response');
+import express from 'express';
+import { env } from '../config/env.js';
+import { checkDbHealth } from '../config/db.js';
+import { sendSuccess } from '../utils/response.js';
 
 const router = express.Router();
 
@@ -53,4 +53,6 @@ router.get('/db', async (req, res) => {
   });
 });
 
-module.exports = router;
+export { router };
+export default router;
+

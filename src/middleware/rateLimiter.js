@@ -1,6 +1,6 @@
-const rateLimit = require('express-rate-limit');
-const { env } = require('../config/env');
-const { sendError } = require('../utils/response');
+import rateLimit from 'express-rate-limit';
+import { env } from '../config/env.js';
+import { sendError } from '../utils/response.js';
 
 const isTest = env.NODE_ENV === 'test';
 
@@ -48,9 +48,10 @@ const viewsRateLimiter = rateLimit({
   },
 });
 
-module.exports = {
+export {
   generalRateLimiter,
   authRateLimiter,
   demoFormRateLimiter,
   viewsRateLimiter,
 };
+

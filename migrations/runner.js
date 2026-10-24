@@ -1,7 +1,12 @@
-const fs = require('fs');
-const path = require('path');
-const mysql = require('mysql2/promise');
-const dotenv = require('dotenv');
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import process from 'node:process';
+import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -116,10 +121,13 @@ async function runMigrations() {
   }
 }
 
-if (require.main === module) {
+const isDirectCall = process.argv[1] && path.resolve(process.argv[1]) === __filename;
+if (isDirectCall) {
   runMigrations()
     .then(() => process.exit(0))
     .catch(() => process.exit(1));
 }
 
-module.exports = { runMigrations };
+export { runMigrations };
+export default runMigrations;
+

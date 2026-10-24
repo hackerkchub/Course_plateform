@@ -1,4 +1,9 @@
-const { seedSuperAdmin } = require('./001_super_admin');
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import process from 'node:process';
+import { seedSuperAdmin } from './001_super_admin.js';
+
+const __filename = fileURLToPath(import.meta.url);
 
 async function runSeeds() {
   console.log('\n=============================================');
@@ -14,8 +19,11 @@ async function runSeeds() {
   }
 }
 
-if (require.main === module) {
+const isDirectCall = process.argv[1] && path.resolve(process.argv[1]) === __filename;
+if (isDirectCall) {
   runSeeds().then(() => process.exit(0));
 }
 
-module.exports = { runSeeds };
+export { runSeeds };
+export default runSeeds;
+

@@ -1,9 +1,9 @@
-const { describe, it, before, after } = require('node:test');
-const assert = require('node:assert');
-const request = require('supertest');
-const app = require('../src/app');
-const { enableMockMode, disableMockMode } = require('../src/config/db');
-const { validateEnv } = require('../src/config/env');
+import { describe, it, before, after } from 'node:test';
+import assert from 'node:assert';
+import request from 'supertest';
+import app from '../src/app.js';
+import { enableMockMode, disableMockMode } from '../src/config/db.js';
+import { validateEnv } from '../src/config/env.js';
 
 describe('Phase 2 Scaffold & Health Automated Tests', () => {
   before(() => {

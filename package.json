@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Course Platform Backend API using Node.js, Express, and MySQL",
   "main": "src/server.js",
+  "type": "module",
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",

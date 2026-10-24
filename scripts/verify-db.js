@@ -1,6 +1,10 @@
-const mysql = require('mysql2/promise');
-const dotenv = require('dotenv');
-const path = require('path');
+import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Always load the actual .env file
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -94,3 +98,7 @@ async function verifyDatabaseConnection() {
 }
 
 verifyDatabaseConnection();
+
+export { verifyDatabaseConnection };
+export default verifyDatabaseConnection;
+

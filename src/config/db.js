@@ -1,6 +1,6 @@
-const mysql = require('mysql2/promise');
-const { env } = require('./env');
-const logger = require('./logger');
+import mysql from 'mysql2/promise';
+import { env } from './env.js';
+import logger from './logger.js';
 
 let pool = null;
 let isMockMode = false;
@@ -105,10 +105,11 @@ async function closePool() {
   }
 }
 
-module.exports = {
+export {
   getPool,
   checkDbHealth,
   enableMockMode,
   disableMockMode,
   closePool,
 };
+
