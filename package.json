@@ -1,0 +1,41 @@
+{
+  "name": "course-platform-backend",
+  "version": "1.0.0",
+  "description": "Course Platform Backend API using Node.js, Express, and MySQL",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test tests/**/*.test.js",
+    "check-db": "node scripts/verify-db.js",
+    "migrate": "node migrations/runner.js",
+    "seed": "node seeds/seed_runner.js"
+  },
+  "keywords": [
+    "nodejs",
+    "express",
+    "mysql",
+    "course-platform"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.2.0",
+    "google-auth-library": "^9.10.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.9.7",
+    "node-cron": "^3.0.3",
+    "pino": "^9.0.0",
+    "pino-pretty": "^11.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "supertest": "^7.0.0"
+  }
+}
