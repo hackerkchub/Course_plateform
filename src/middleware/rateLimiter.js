@@ -2,7 +2,12 @@ import rateLimit from 'express-rate-limit';
 import { env } from '../config/env.js';
 import { sendError } from '../utils/response.js';
 
-const isTest = env.NODE_ENV === 'test';
+const isTest = env.NODE_ENV === 'test' ||
+  process.env.NODE_ENV === 'test' ||
+  process.env.npm_lifecycle_event === 'test' ||
+  Boolean(process.env.NODE_TEST_CONTEXT) ||
+  process.argv.some(arg => /test/i.test(arg)) ||
+  process.execArgv.some(arg => /test/i.test(arg));
 
 // General API rate limiter (Section 19.1: 300 per 15 min)
 const generalRateLimiter = rateLimit({

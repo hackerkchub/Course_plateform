@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google OAuth Manual Test Harness | Course Platform</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --code-bg: #090d16;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+      padding: 24px 16px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .container {
+      max-width: 820px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .banner-dev {
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid var(--warning);
+      border-radius: 8px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .banner-dev-icon {
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .banner-dev-text h2 {
+      font-size: 15px;
+      color: var(--warning);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .banner-dev-text p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    }
+
+    .card h1 {
+      font-size: 22px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-subtitle {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: var(--code-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      padding: 10px 14px;
+      border-radius: 6px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--primary);
+    }
+
+    button {
+      background-color: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    button:hover {
+      background-color: var(--primary-hover);
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    button.btn-secondary {
+      background-color: #334155;
+    }
+
+    button.btn-secondary:hover {
+      background-color: #475569;
+    }
+
+    button.btn-danger {
+      background-color: rgba(239, 68, 68, 0.2);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+    }
+
+    button.btn-danger:hover {
+      background-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .google-btn-wrapper {
+      margin-top: 16px;
+      padding: 16px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px dashed var(--card-border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      min-height: 80px;
+      justify-content: center;
+    }
+
+    .token-result-section {
+      display: none;
+      margin-top: 24px;
+      border-top: 1px solid var(--card-border);
+      padding-top: 24px;
+    }
+
+    .token-result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .token-textarea {
+      width: 100%;
+      height: 120px;
+      background: var(--code-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      color: #38bdf8;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 12px;
+      resize: vertical;
+      word-break: break-all;
+      outline: none;
+    }
+
+    .claims-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .claim-item {
+      background: var(--code-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 10px 14px;
+    }
+
+    .claim-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .claim-val {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text);
+      word-break: break-all;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-success {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--success);
+      border: 1px solid var(--success);
+    }
+
+    .badge-danger {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+
+    .postman-guide {
+      margin-top: 20px;
+      background: var(--code-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .postman-guide h3 {
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #60a5fa;
+    }
+
+    pre {
+      background: rgba(0, 0, 0, 0.4);
+      padding: 10px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      overflow-x: auto;
+      color: #cbd5e1;
+    }
+
+    .actions-bar {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+
+    .backend-response-box {
+      margin-top: 16px;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      display: none;
+    }
+
+    .backend-response-box h4 {
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: #a78bfa;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- DEV ONLY WARNING BANNER -->
+  <div class="banner-dev">
+    <div class="banner-dev-icon">⚠️</div>
+    <div class="banner-dev-text">
+      <h2>Development &amp; Testing Only</h2>
+      <p>
+        This page runs strictly on your local machine to obtain a real Google ID token for testing <code>POST /api/auth/google</code>.
+        It never persists tokens to storage (no localStorage, sessionStorage, or custom cookies) and never sends tokens to third parties.
+        Delete this folder (<code>manual-test/</code>) once manual verification is complete.
+      </p>
+    </div>
+  </div>
+
+  <!-- MAIN CARD -->
+  <div class="card">
+    <h1>
+      <span>🔐</span> Google OAuth Manual Test Harness
+    </h1>
+    <p class="card-subtitle">
+      Sign in with your Google Account to generate an authentic Google ID token for Postman or backend API testing.
+    </p>
+
+    <!-- CLIENT ID CONFIGURATION -->
+    <div class="form-group">
+      <label class="form-label" for="client-id-input">Google Client ID (must match backend <code>GOOGLE_CLIENT_ID</code>):</label>
+      <div class="input-row">
+        <input type="text" id="client-id-input" placeholder="e.g. 123456789-abcdef.apps.googleusercontent.com" spellcheck="false">
+        <button type="button" id="init-btn" class="btn-secondary">Apply / Reload Button</button>
+      </div>
+      <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
+        Origin: <strong id="current-origin-label" style="color: #38bdf8;"></strong> &nbsp;|&nbsp; 
+        Backend Audience: <span id="audience-match-status">Audience must match backend GOOGLE_CLIENT_ID</span>
+      </p>
+    </div>
+
+    <!-- GOOGLE BUTTON MOUNT CONTAINER -->
+    <div class="google-btn-wrapper">
+      <div id="google-signin-btn"></div>
+      <span id="gsi-status-text" style="font-size: 13px; color: var(--text-muted);">
+        Loading Google Identity Services...
+      </span>
+    </div>
+
+    <!-- RETURNED TOKEN SECTION (Revealed upon sign in) -->
+    <div id="token-result-section" class="token-result-section">
+      <div class="token-result-header">
+        <h3 style="font-size: 16px; color: #34d399;">✅ Google ID Token Received</h3>
+        <div class="actions-bar" style="margin-top: 0;">
+          <button type="button" id="copy-btn">📋 Copy ID Token</button>
+          <button type="button" id="clear-btn" class="btn-danger">🗑️ Clear From Memory</button>
+        </div>
+      </div>
+
+      <textarea id="id-token-output" class="token-textarea" readonly spellcheck="false" placeholder="ID Token will appear here..."></textarea>
+
+      <!-- DECODED CLAIMS PREVIEW -->
+      <h4 style="font-size: 14px; margin-top: 16px; color: var(--text-muted);">Decoded Claims Preview:</h4>
+      <div class="claims-grid">
+        <div class="claim-item">
+          <div class="claim-label">Email</div>
+          <div class="claim-val" id="claim-email">-</div>
+        </div>
+        <div class="claim-item">
+          <div class="claim-label">Email Verified</div>
+          <div class="claim-val" id="claim-verified">-</div>
+        </div>
+        <div class="claim-item">
+          <div class="claim-label">Name</div>
+          <div class="claim-val" id="claim-name">-</div>
+        </div>
+        <div class="claim-item">
+          <div class="claim-label">Google Sub ID (google_id)</div>
+          <div class="claim-val" id="claim-sub">-</div>
+        </div>
+        <div class="claim-item">
+          <div class="claim-label">Audience (aud)</div>
+          <div class="claim-val" id="claim-aud">-</div>
+        </div>
+        <div class="claim-item">
+          <div class="claim-label">Token Expiration (exp)</div>
+          <div class="claim-val" id="claim-exp">-</div>
+        </div>
+      </div>
+
+      <!-- POSTMAN / BACKEND CALL GUIDE -->
+      <div class="postman-guide">
+        <h3>🚀 Test via Postman or Backend</h3>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 10px;">
+          Paste this payload into Postman at <code>POST http://localhost:5000/api/auth/google</code>:
+        </p>
+        <pre id="postman-json-payload">{\n  "id_token": "..."\n}</pre>
+
+        <div class="actions-bar">
+          <button type="button" id="copy-json-btn" class="btn-secondary">📋 Copy Postman JSON</button>
+          <button type="button" id="test-backend-btn">⚡ Send Direct Request to Backend (localhost:5000)</button>
+        </div>
+
+        <div id="backend-response-box" class="backend-response-box">
+          <h4>Backend Response:</h4>
+          <pre id="backend-response-content"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OFFICIAL GOOGLE IDENTITY SERVICES LIBRARY -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<script>
+  let currentToken = '';
+  let configuredClientId = '';
+  let backendApiUrl = 'http://localhost:5000';
+
+  const originLabel = document.getElementById('current-origin-label');
+  const clientIdInput = document.getElementById('client-id-input');
+  const initBtn = document.getElementById('init-btn');
+  const gsiStatusText = document.getElementById('gsi-status-text');
+  const tokenSection = document.getElementById('token-result-section');
+  const tokenOutput = document.getElementById('id-token-output');
+  const copyBtn = document.getElementById('copy-btn');
+  const clearBtn = document.getElementById('clear-btn');
+  const copyJsonBtn = document.getElementById('copy-json-btn');
+  const testBackendBtn = document.getElementById('test-backend-btn');
+  const postmanPayload = document.getElementById('postman-json-payload');
+  const backendResponseBox = document.getElementById('backend-response-box');
+  const backendResponseContent = document.getElementById('backend-response-content');
+
+  originLabel.textContent = window.location.origin;
+
+  // 1. Fetch server configuration if served via manual-test/server.js
+  async function loadServerConfig() {
+    try {
+      const res = await fetch('/config');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.clientId) {
+          configuredClientId = data.clientId;
+          clientIdInput.value = data.clientId;
+        }
+        if (data.backendUrl) {
+          backendApiUrl = data.backendUrl;
+        }
+      }
+    } catch {
+      // Direct file or separate port without /config
+    }
+  }
+
+  // 2. Initialize Google Identity Services button
+  function initGoogleButton() {
+    const clientId = clientIdInput.value.trim();
+    if (!clientId) {
+      gsiStatusText.textContent = 'Please enter or confirm your Google Client ID above.';
+      return;
+    }
+
+    if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+      gsiStatusText.textContent = 'Waiting for Google Identity Services script to finish loading...';
+      setTimeout(initGoogleButton, 300);
+      return;
+    }
+
+    try {
+      google.accounts.id.initialize({
+        client_id: clientId,
+        callback: handleCredentialResponse,
+        auto_select: false,
+        cancel_on_tap_outside: true,
+      });
+
+      const buttonContainer = document.getElementById('google-signin-btn');
+      buttonContainer.innerHTML = '';
+
+      google.accounts.id.renderButton(buttonContainer, {
+        theme: 'filled_blue',
+        size: 'large',
+        text: 'signin_with',
+        shape: 'rectangular',
+        logo_alignment: 'left',
+        width: 250,
+      });
+
+      gsiStatusText.textContent = 'Ready! Click the button above to sign in.';
+    } catch (err) {
+      gsiStatusText.innerHTML = `<span style="color: var(--danger);">Google Init Error: ${err.message}</span>`;
+    }
+  }
+
+  // 3. Callback triggered by Google on successful authentication
+  function handleCredentialResponse(response) {
+    if (!response || !response.credential) {
+      alert('Google authentication response was empty or failed.');
+      return;
+    }
+
+    currentToken = response.credential;
+    tokenOutput.value = currentToken;
+    tokenSection.style.display = 'block';
+
+    // Decode JWT payload (without sending anywhere)
+    try {
+      const parts = currentToken.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        document.getElementById('claim-email').textContent = payload.email || '-';
+        document.getElementById('claim-name').textContent = payload.name || '-';
+        document.getElementById('claim-sub').textContent = payload.sub || '-';
+        document.getElementById('claim-aud').textContent = payload.aud || '-';
+
+        const verifiedElem = document.getElementById('claim-verified');
+        if (payload.email_verified) {
+          verifiedElem.innerHTML = '<span class="badge badge-success">TRUE</span>';
+        } else {
+          verifiedElem.innerHTML = '<span class="badge badge-danger">FALSE</span>';
+        }
+
+        if (payload.exp) {
+          const expDate = new Date(payload.exp * 1000);
+          document.getElementById('claim-exp').textContent = `${expDate.toLocaleTimeString()} (${Math.round((expDate - Date.now()) / 60000)} mins left)`;
+        }
+
+        // Update postman preview
+        postmanPayload.textContent = JSON.stringify({ id_token: currentToken }, null, 2);
+      }
+    } catch (e) {
+      console.warn('Could not decode token claims preview:', e.message);
+    }
+
+    tokenOutput.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // 4. Copy token to clipboard
+  copyBtn.addEventListener('click', async () => {
+    if (!currentToken) return;
+    try {
+      await navigator.clipboard.writeText(currentToken);
+      const originalText = copyBtn.textContent;
+      copyBtn.textContent = '✅ Copied!';
+      setTimeout(() => { copyBtn.textContent = originalText; }, 2000);
+    } catch {
+      tokenOutput.select();
+      document.execCommand('copy');
+      alert('Token selected and copied to clipboard.');
+    }
+  });
+
+  // 5. Copy Postman JSON payload
+  copyJsonBtn.addEventListener('click', async () => {
+    if (!currentToken) return;
+    const jsonStr = JSON.stringify({ id_token: currentToken }, null, 2);
+    try {
+      await navigator.clipboard.writeText(jsonStr);
+      const orig = copyJsonBtn.textContent;
+      copyJsonBtn.textContent = '✅ JSON Copied!';
+      setTimeout(() => { copyJsonBtn.textContent = orig; }, 2000);
+    } catch {
+      prompt('Copy JSON payload:', jsonStr);
+    }
+  });
+
+  // 6. Clear token from memory and DOM (zero storage)
+  clearBtn.addEventListener('click', () => {
+    currentToken = '';
+    tokenOutput.value = '';
+    tokenSection.style.display = 'none';
+    backendResponseBox.style.display = 'none';
+    backendResponseContent.textContent = '';
+  });
+
+  // 7. Test direct backend call
+  testBackendBtn.addEventListener('click', async () => {
+    if (!currentToken) return;
+    backendResponseBox.style.display = 'block';
+    backendResponseContent.textContent = 'Sending request to ' + backendApiUrl + '/api/auth/google...';
+
+    try {
+      const res = await fetch(`${backendApiUrl}/api/auth/google`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include and receive cookies
+        body: JSON.stringify({ id_token: currentToken }),
+      });
+
+      const body = await res.json();
+      backendResponseContent.textContent = `HTTP ${res.status} ${res.statusText}\n\n` + JSON.stringify(body, null, 2);
+    } catch (err) {
+      backendResponseContent.textContent = `❌ Network Error: Could not reach backend at ${backendApiUrl}\n\n${err.message}\nEnsure the backend server is running via: npm run dev`;
+    }
+  });
+
+  // 8. Re-init button on manual change
+  initBtn.addEventListener('click', () => {
+    initGoogleButton();
+  });
+
+  // Run on startup
+  window.addEventListener('load', async () => {
+    await loadServerConfig();
+    initGoogleButton();
+  });
+</script>
+
+</body>
+</html>

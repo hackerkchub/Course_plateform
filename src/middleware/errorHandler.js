@@ -38,9 +38,9 @@ function errorHandler(err, req, res, next) {
     return sendError(res, 'Invalid JSON payload in request body', [], 400);
   }
 
-  // 3. Known custom AppError
-  if (err instanceof AppError) {
-    return sendError(res, err.message, err.errors, err.statusCode);
+  // 3. Known custom AppError or error with statusCode
+  if (err instanceof AppError || err.statusCode) {
+    return sendError(res, err.message, err.errors || [], err.statusCode || 400);
   }
 
   // 4. Rate-limit error or CORS error
