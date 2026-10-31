@@ -95,6 +95,71 @@ export async function deleteReview(id) {
 }
 
 /**
+ * Atomically update review moderation status and dynamically recalculate
+ * courses.rating_avg and courses.rating_count on the same database connection.
+ * If either database operation fails, both changes roll back.
+ */
+export async function moderateReviewAndRecalculateRating(reviewId, courseId, moderationStatus) {
+  const pool = getPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    // 1. Update review moderation status
+    const [updateResult] = await connection.query(
+      `UPDATE course_reviews 
+       SET moderation_status = ?, updated_at = NOW() 
+       WHERE id = ?`,
+      [moderationStatus, reviewId]
+    );
+
+    if (updateResult.affectedRows === 0) {
+      throw new Error(`Review ${reviewId} not found for moderation`);
+    }
+
+    // 2. Lock the course row to serialize aggregate recalculation
+    const [courseCheck] = await connection.query(
+      `SELECT id FROM courses WHERE id = ? FOR UPDATE`,
+      [courseId]
+    );
+
+    if (courseCheck.length === 0) {
+      throw new Error(`Course ${courseId} not found during review moderation`);
+    }
+
+    // 3. Dynamically recalculate aggregates exclusively from approved reviews
+    const [statsRows] = await connection.query(
+      `SELECT 
+         COALESCE(ROUND(AVG(rating), 2), 0.00) AS avg_rating,
+         COUNT(*) AS total_count
+       FROM course_reviews
+       WHERE course_id = ? AND moderation_status = 'approved'`,
+      [courseId]
+    );
+
+    const avgRating = Number(statsRows[0]?.avg_rating || 0.00);
+    const totalCount = Number(statsRows[0]?.total_count || 0);
+
+    // 4. Update course rating aggregates on the same connection
+    await connection.query(
+      `UPDATE courses 
+       SET rating_avg = ?, rating_count = ? 
+       WHERE id = ?`,
+      [avgRating, totalCount, courseId]
+    );
+
+    await connection.commit();
+    return { avgRating, totalCount };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
  * Update review moderation status
  */
 export async function updateReviewModeration(id, moderationStatus) {

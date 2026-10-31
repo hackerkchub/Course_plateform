@@ -54,6 +54,18 @@ export async function addCourseToWishlist(userId, courseId) {
     return { alreadyWishlisted: false, wishlistId: result.insertId };
   } catch (error) {
     await connection.rollback();
+
+    // Handle concurrent duplicate addition gracefully using uq_wishlists_user_course
+    if (error.code === 'ER_DUP_ENTRY' || error.errno === 1062) {
+      const [rows] = await pool.query(
+        `SELECT id FROM wishlists WHERE user_id = ? AND course_id = ?`,
+        [userId, courseId]
+      );
+      if (rows.length > 0) {
+        return { alreadyWishlisted: true, wishlistId: rows[0].id };
+      }
+    }
+
     throw error;
   } finally {
     connection.release();

@@ -4,6 +4,7 @@ import request from 'supertest';
 import app from '../src/app.js';
 import { getPool, closePool } from '../src/config/db.js';
 import { generateAccessToken } from '../src/utils/token.js';
+import { moderateReviewAndRecalculateRating } from '../src/modules/reviews/review.repository.js';
 
 describe('Section 19.4 Step 11: Wishlist, Reviews & Search Tests', () => {
   const pool = getPool();
@@ -20,6 +21,7 @@ describe('Section 19.4 Step 11: Wishlist, Reviews & Search Tests', () => {
   let testSubcategoryId = null;
   let testCourseId = null;
   let draftCourseId = null;
+  let concurrentCourseId = null;
   let testReviewId = null;
 
   const createdUserIds = [];
@@ -123,6 +125,28 @@ describe('Section 19.4 Step 11: Wishlist, Reviews & Search Tests', () => {
     draftCourseId = draftResult.insertId;
     createdCourseIds.push(draftCourseId);
 
+    // 7b. Create Published Course for Concurrency Tests
+    const [concurrentResult] = await pool.query(
+      `INSERT INTO courses (
+         category_id, subcategory_id, course_code, course_name, slug,
+         short_description, description, course_level, language, mode,
+         duration_hours, price, is_free, status, published_at
+       ) VALUES (
+         ?, ?, ?, ?, ?,
+         'Concurrent course description', '<p>Concurrent details</p>', 'beginner', 'English', 'online',
+         20.0, 0.00, TRUE, 'published', NOW()
+       )`,
+      [
+        testCategoryId,
+        testSubcategoryId,
+        `S11-CON-${testRunId}`,
+        `Concurrency Mastery ${testRunId}`,
+        `concurrency-mastery-${testRunId}`,
+      ]
+    );
+    concurrentCourseId = concurrentResult.insertId;
+    createdCourseIds.push(concurrentCourseId);
+
     // 8. Enroll Student A in Published Course (so Student A is eligible for reviews)
     await pool.query(
       `INSERT INTO course_enrollments (user_id, course_id, enrollment_source, enrollment_status, enrolled_at)
@@ -133,13 +157,12 @@ describe('Section 19.4 Step 11: Wishlist, Reviews & Search Tests', () => {
 
   after(async () => {
     try {
-      if (testCourseId || draftCourseId) {
-        const cIds = [testCourseId, draftCourseId].filter(Boolean);
-        const p = cIds.map(() => '?').join(',');
-        await pool.query(`DELETE FROM course_reviews WHERE course_id IN (${p})`, cIds);
-        await pool.query(`DELETE FROM wishlists WHERE course_id IN (${p})`, cIds);
-        await pool.query(`DELETE FROM course_enrollments WHERE course_id IN (${p})`, cIds);
-        await pool.query(`DELETE FROM courses WHERE id IN (${p})`, cIds);
+      if (createdCourseIds.length > 0) {
+        const p = createdCourseIds.map(() => '?').join(',');
+        await pool.query(`DELETE FROM course_reviews WHERE course_id IN (${p})`, createdCourseIds);
+        await pool.query(`DELETE FROM wishlists WHERE course_id IN (${p})`, createdCourseIds);
+        await pool.query(`DELETE FROM course_enrollments WHERE course_id IN (${p})`, createdCourseIds);
+        await pool.query(`DELETE FROM courses WHERE id IN (${p})`, createdCourseIds);
       }
       if (testSubcategoryId) {
         await pool.query(`DELETE FROM subcategories WHERE id = ?`, [testSubcategoryId]);
@@ -218,6 +241,65 @@ describe('Section 19.4 Step 11: Wishlist, Reviews & Search Tests', () => {
       // Verify course.wishlist_count is STILL 1 (not duplicated)
       const [cRows] = await pool.query('SELECT wishlist_count FROM courses WHERE id = ?', [testCourseId]);
       assert.strictEqual(Number(cRows[0].wishlist_count), 1);
+    });
+
+    it('POST /api/courses/:id/wishlist should handle concurrent duplicate additions safely with Promise.all', async () => {
+      // Launch 2 simultaneous addition requests for Student B on concurrentCourseId
+      const [res1, res2] = await Promise.all([
+        request(app)
+          .post(`/api/courses/${concurrentCourseId}/wishlist`)
+          .set('Authorization', `Bearer ${studentTokenB}`),
+        request(app)
+          .post(`/api/courses/${concurrentCourseId}/wishlist`)
+          .set('Authorization', `Bearer ${studentTokenB}`)
+      ]);
+
+      // Both requests must succeed (one 201 Created, one 200 OK idempotent)
+      const statusCodes = [res1.status, res2.status].sort();
+      assert.deepStrictEqual(statusCodes, [200, 201]);
+
+      // Wishlist record exists exactly once in database
+      const [wRows] = await pool.query(
+        'SELECT * FROM wishlists WHERE user_id = ? AND course_id = ?',
+        [studentUserB.id, concurrentCourseId]
+      );
+      assert.strictEqual(wRows.length, 1);
+
+      // Course wishlist_count incremented exactly once to 1
+      const [cRows] = await pool.query(
+        'SELECT wishlist_count FROM courses WHERE id = ?',
+        [concurrentCourseId]
+      );
+      assert.strictEqual(Number(cRows[0].wishlist_count), 1);
+    });
+
+    it('DELETE /api/courses/:id/wishlist should handle concurrent duplicate removals safely with Promise.all', async () => {
+      // Launch 2 simultaneous deletion requests for Student B on concurrentCourseId
+      const [del1, del2] = await Promise.all([
+        request(app)
+          .delete(`/api/courses/${concurrentCourseId}/wishlist`)
+          .set('Authorization', `Bearer ${studentTokenB}`),
+        request(app)
+          .delete(`/api/courses/${concurrentCourseId}/wishlist`)
+          .set('Authorization', `Bearer ${studentTokenB}`)
+      ]);
+
+      assert.strictEqual(del1.status, 200);
+      assert.strictEqual(del2.status, 200);
+
+      // Wishlist record removed from database
+      const [wRows] = await pool.query(
+        'SELECT * FROM wishlists WHERE user_id = ? AND course_id = ?',
+        [studentUserB.id, concurrentCourseId]
+      );
+      assert.strictEqual(wRows.length, 0);
+
+      // Counter decremented to 0 and never dropped below 0
+      const [cRows] = await pool.query(
+        'SELECT wishlist_count FROM courses WHERE id = ?',
+        [concurrentCourseId]
+      );
+      assert.strictEqual(Number(cRows[0].wishlist_count), 0);
     });
 
     it('GET /api/me/wishlist should reject unauthenticated request with 401', async () => {
@@ -494,6 +576,49 @@ describe('Section 19.4 Step 11: Wishlist, Reviews & Search Tests', () => {
       assert.strictEqual(review.email, undefined);
       assert.strictEqual(review.phone, undefined);
       assert.strictEqual(review.student_email, undefined);
+    });
+
+    it('PATCH /api/admin/reviews/:id/moderate should be safe and idempotent on repeated approval', async () => {
+      // Re-approve the already approved review
+      const res = await request(app)
+        .patch(`/api/admin/reviews/${testReviewId}/moderate`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ moderation_status: 'approved' })
+        .expect(200);
+
+      assert.strictEqual(res.body.success, true);
+      assert.strictEqual(res.body.data.course_rating_avg, 5.00);
+      assert.strictEqual(res.body.data.course_rating_count, 1);
+
+      // Verify DB counters were not duplicated
+      const [cRows] = await pool.query('SELECT rating_avg, rating_count FROM courses WHERE id = ?', [testCourseId]);
+      assert.strictEqual(Number(cRows[0].rating_avg), 5.00);
+      assert.strictEqual(Number(cRows[0].rating_count), 1);
+    });
+
+    it('moderateReviewAndRecalculateRating should roll back all database changes if an operation fails', async () => {
+      // Create a temporary review in 'pending' status for rollback verification
+      const [tmpResult] = await pool.query(
+        `INSERT INTO course_reviews (user_id, course_id, rating, moderation_status, is_verified_enrollment, created_at, updated_at)
+         VALUES (?, ?, 4, 'pending', TRUE, NOW(), NOW())`,
+        [studentUserB.id, testCourseId]
+      );
+      const tmpReviewId = tmpResult.insertId;
+
+      // Invoke atomic repository function with a non-existent course ID to trigger transactional failure
+      await assert.rejects(
+        async () => {
+          await moderateReviewAndRecalculateRating(tmpReviewId, 999999999, 'approved');
+        },
+        /Course 999999999 not found/
+      );
+
+      // Verify review moderation_status REMAINS 'pending' because the transaction rolled back!
+      const [rRows] = await pool.query('SELECT moderation_status FROM course_reviews WHERE id = ?', [tmpReviewId]);
+      assert.strictEqual(rRows[0].moderation_status, 'pending');
+
+      // Cleanup tmp review
+      await pool.query('DELETE FROM course_reviews WHERE id = ?', [tmpReviewId]);
     });
   });
 

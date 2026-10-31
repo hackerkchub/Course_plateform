@@ -57,6 +57,11 @@ import {
   reviewStudentRoutes,
   reviewAdminRoutes,
 } from './modules/reviews/review.routes.js';
+import {
+  analyticsTrackRoutes,
+  analyticsAdminCourseRoutes,
+  analyticsAdminGeneralRoutes,
+} from './modules/analytics/analytics.routes.js';
 
 
 const app = express();
@@ -95,6 +100,7 @@ app.use('/api/courses', courseEligibilityRoutes);
 app.use('/api/courses', enrollmentCourseRoutes);
 app.use('/api/courses', wishlistCourseRoutes);
 app.use('/api/courses', reviewCourseRoutes);
+app.use('/api/courses', analyticsTrackRoutes);
 app.use('/api/courses', coursePublicRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/instructors', instructorPublicRoutes);
@@ -111,6 +117,7 @@ app.use('/api/admin/uploads', uploadAdminRoutes);
 app.use('/api/admin/enrollments', enrollmentAdminRoutes);
 app.use('/api/admin/reviews', reviewAdminRoutes);
 app.use('/api/admin/demo-requests', demoAdminLeadsRoutes);
+app.use('/api/admin/courses', analyticsAdminCourseRoutes);
 app.use('/api/admin/courses', demoAdminCourseRoutes);
 app.use('/api/admin/courses', adminCourseEligibilityRoutes);
 app.use('/api/admin/categories', categoryAdminRoutes);
@@ -125,6 +132,7 @@ app.use('/api/admin/lessons', lessonAdminRoutes);
 app.use('/api/admin/batches', batchAdminRoutes);
 app.use('/api/admin/materials', materialAdminRoutes);
 app.use('/api/admin/instructors', instructorAdminRoutes);
+app.use('/api/admin', analyticsAdminGeneralRoutes);
 
 
 // Placeholder root API info route

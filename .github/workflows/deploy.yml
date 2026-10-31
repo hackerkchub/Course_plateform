@@ -1,0 +1,73 @@
+name: Deploy Course Platform Backend
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: course-platform-backend-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Sync Backend via FTP/FTPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Sync Backend Files via FTPS
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          # Target server host or IP (e.g. ftp.yourdomain.com or host IP)
+          server: ${{ secrets.FTP_SERVER }}
+          
+          # FTP username (e.g. deployer@yourdomain.com or cPanel username)
+          username: ${{ secrets.FTP_USERNAME }}
+          
+          # FTP user password
+          password: ${{ secrets.FTP_PASSWORD }}
+          
+          # Security protocol: 'ftps' (explicit TLS, recommended) with fallback support
+          protocol: ${{ secrets.FTP_PROTOCOL || 'ftps' }}
+          
+          # Port: standard port 21 (confirmed by host) or custom if specified
+          port: ${{ secrets.FTP_PORT || 21 }}
+          
+          # Local directory to sync (repository root)
+          local-dir: ./
+          
+          # Remote server directory: defaults to root './' of the mapped FTP directory.
+          # If the FTP user was NOT rooted directly at the application folder,
+          # configure FTP_SERVER_DIR in GitHub Secrets (must end with a trailing '/').
+          server-dir: ${{ secrets.FTP_SERVER_DIR || './' }}
+          
+          # Safety: Never wipe or delete existing unmanaged files on the remote server
+          dangerous-clean-slate: false
+          
+          # File and directory exclusions:
+          # Protects secrets, server uploads, runtime logs, dependency trees, and dev artifacts
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.github/**
+            **/node_modules/**
+            **/.env
+            **/.env*
+            **/.env.*
+            **/uploads/**
+            **/logs/**
+            **/coverage/**
+            **/scratch/**
+            **/tests/**
+            **/*.log
+            **/.DS_Store
+            **/powershell.cmd
+            **/*.tmp
+            **/*.temp

@@ -14,7 +14,8 @@ const testFiles = [
   'tests/server-startup.test.js',
   'tests/uploads_materials.test.js',
   'tests/utils.test.js',
-  'tests/wishlist_reviews.test.js'
+  'tests/wishlist_reviews.test.js',
+  'tests/analytics_cron.test.js'
 ];
 
 async function runTest(file) {

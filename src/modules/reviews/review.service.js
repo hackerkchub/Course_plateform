@@ -10,6 +10,7 @@ import {
   deleteReview,
   updateReviewModeration,
   recalculateCourseRating,
+  moderateReviewAndRecalculateRating,
   findPublicCourseReviews,
   findAdminReviews,
 } from './review.repository.js';
@@ -119,11 +120,8 @@ export async function moderateReviewService(reviewId, { moderation_status, reaso
 
   const previousStatus = review.moderation_status;
 
-  // Update status in DB
-  await updateReviewModeration(reviewId, moderation_status);
-
-  // Dynamically recalculate course rating_avg and rating_count from approved reviews
-  const stats = await recalculateCourseRating(review.course_id);
+  // Atomically update moderation status and recalculate course ratings on same connection
+  const stats = await moderateReviewAndRecalculateRating(reviewId, review.course_id, moderation_status);
 
   // Record audit log
   await createAuditLog({

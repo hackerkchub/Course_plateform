@@ -1,0 +1,2422 @@
+<USER_REQUEST>
+Proceed with Phase 3 using the uploaded **Course Platform Backend Plan (Node.js + MySQL)** as the single source of truth.
+
+The specification is authoritative. Do not replace it with a proposed design or rely on assumptions from earlier reports.
+
+## 1. Workspace and database safety
+
+- Work only inside `D:\Course_plateform\backend\`.
+- Use only the dedicated database `course_platform_db`.
+- Never access or modify `D:\g9expert` or its database.
+- Never drop, reset, truncate, or recreate a database or existing tables.
+- Before executing migrations, verify the active database name and abort if it is not exactly `course_platform_db`.
+- Never expose or hardcode database credentials.
+
+## 2. Follow the uploaded specification exactly
+
+Read the complete specification, especially Sections 2, 3, 4, 4.8, 4.9, 5, 19.1, 19.3 and 19.4.
+
+Implement exactly the specified 33 tables, including their names, columns, data types, ENUM values, defaults, foreign keys, unique constraints, indexes and soft-delete requirements.
+
+The required table list is:
+
+1. `users`
+2. `refresh_tokens`
+3. `categories`
+4. `subcategories`
+5. `instructors`
+6. `courses`
+7. `course_slug_history`
+8. `course_seo`
+9. `course_tags`
+10. `course_points`
+11. `course_faqs`
+12. `course_testimonials`
+13. `course_modules`
+14. `course_lessons`
+15. `course_materials`
+16. `course_batches`
+17. `course_benefits`
+18. `course_enrollment_settings`
+19. `course_offers`
+20. `course_installment_plans`
+21. `course_demo_settings`
+22. `demo_requests`
+23. `demo_request_activity_log`
+24. `course_eligibility_rules`
+25. `eligibility_checks`
+26. `course_enrollments`
+27. `lesson_progress`
+28. `wishlists`
+29. `course_reviews`
+30. `course_views`
+31. `course_analytics_daily`
+32. `audit_logs`
+33. `notifications`
+
+Do not add separate roles, user-profile, master-tags, or custom-question tables. Use the ENUM and JSON structures specified in the source.
+
+## 3. Build migrations
+
+- Create ordered, versioned SQL migration files and a migration runner.
+- Use InnoDB and `utf8mb4`.
+- Ensure compatibility with the verified MariaDB 10.4.32 environment.
+- Respect foreign-key dependencies and use parameterized queries in application code.
+- Include the source-specified indexes, including course slug/status indexes, demo-request lookup indexes, enrollment uniqueness, view lookup indexes, and user email/Google ID indexes.
+- Track successfully applied migrations so rerunning the runner does not duplicate schema changes.
+- Never silently change a migration that has already been applied.
+
+Before executing DDL, generate and verify a table-and-column traceability checklist against the uploaded specification.
+
+## 4. Super-admin seed
+
+Implement the `SUPER_ADMIN_EMAIL` seed according to the specification.
+
+- Make the seed idempotent.
+- Never grant super-admin privileges to an arbitrary account.
+- Do not hardcode an email or password.
+- Respect the authentication design: user roles must come from the database, never from client input or Google token claims.
+- If creating the initial super-admin requires a Google-authenticated user to exist first, document that prerequisite rather than creating an insecure account.
+
+## 5. Execute and verify
+
+Once the source-to-migration comparison is complete and the safety checks pass:
+
+1. Run the migrations against `course_platform_db` only.
+2. Verify that exactly 33 tables exist.
+3. Verify table names, columns, foreign keys, unique constraints and indexes against the source.
+4. Run the schema tests and `npm test`.
+5. Verify that rerunning the migration runner is safe.
+6. Report any requirement that could not be implemented exactly because of a source ambiguity or MariaDB compatibility issue.
+
+Do not claim that a check passed unless it was actually executed.
+
+## 6. Scope and stop condition
+
+Complete Phase 3 only. Do not implement Google authentication, catalog APIs, uploads, or any Phase 4–10 functionality.
+
+At completion, report:
+- Migration files created and executed
+- Final table count and verification results
+- Foreign-key, unique-constraint and index checks
+- Super-admin seed status and any prerequisites
+- Actual test commands and results
+- Any discrepancies or unresolved issues
+
+Stop after Phase 3 and wait for explicit approval before proceeding to Phase 4.   Course Platform Backend Plan (Node.js + MySQL)
+1. Overview aur scope
+Ye ek single Node.js + Express + MySQL backend hai jo Category → Subcategory → Course catalog chalayega, Google login deta hai, aur demo booking, eligibility check aur admin management sambhalta hai.
+Navigation flow (user ko kya dikhega):
+Home par saari categories dikhti hain.
+Category par click karne se uski subcategories dikhti hain.
+Subcategory par click karne se us subcategory ke saare courses dikhte hain.
+Course page par poori detail, demo booking, eligibility check aur enroll option dikhta hai.
+SEO friendly URLs:
+
+
+Page
+URL
+Category
+/courses/:categorySlug
+Subcategory
+/courses/:categorySlug/:subcategorySlug
+Course
+/courses/:categorySlug/:subcategorySlug/:courseSlug
+
+Is plan me kya shamil hai:
+Google login, roles (user, counsellor, admin, super_admin)
+Categories, subcategories, courses, SEO, pricing aur offers (sirf display ke liye)
+Curriculum, batches, instructors, materials
+Demo requests, eligibility, wishlist, reviews, views aur analytics
+Admin panel ke saare management APIs, audit logs
+Is plan me kya shamil nahi hai (jaan boojh kar):
+Payment gateway aur online payment. Enrollment abhi admin manual ya free enroll se hoga, baad me payment module alag se jud sakta hai.
+CDN. Files server ki local disk par uploads/ folder me rahengi.
+Redis, queue services ya koi paid third party service. Cache aur counters MySQL aur in-memory se chalenge.
+Email/WhatsApp provider. Notifications sirf notifications table me queue hongi, bhejna baad me add hoga.
+2. Tech stack, setup aur folder structure
+Sab kuch free, open-source packages se banega; koi paid service nahi lagegi.
+
+Kaam
+Package
+Server
+express
+Database driver
+mysql2 (connection pool)
+Google login verify
+google-auth-library
+JWT tokens
+jsonwebtoken
+Cookies
+cookie-parser
+Validation
+zod (ya joi)
+File upload
+multer (local disk)
+Security headers
+helmet
+CORS
+cors
+Rate limit
+express-rate-limit
+Logging
+pino ya morgan
+Scheduled jobs
+node-cron
+Env config
+dotenv
+Migrations
+knex ya plain .sql files
+
+Environment variables (.env):
+
+Key
+Kaam
+PORT
+Server port
+NODE_ENV
+development / production
+DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
+MySQL connection
+JWT_ACCESS_SECRET, JWT_REFRESH_SECRET
+Token signing keys
+ACCESS_TOKEN_TTL
+15m
+REFRESH_TOKEN_TTL
+30d
+GOOGLE_CLIENT_ID
+Google token verify ke liye
+FRONTEND_URL
+CORS aur cookie domain
+UPLOAD_DIR
+uploads folder ka path
+MAX_UPLOAD_MB
+File size limit
+SUPER_ADMIN_EMAIL
+Pehla super admin seed karne ke liye
+
+Folder structure:
+backend/
+├── src/
+│   ├── config/            db.js, env.js, google.js
+│   ├── middleware/        authenticate.js, authorize.js, validate.js,
+│   │                      rateLimiter.js, upload.js, errorHandler.js,
+│   │                      auditLogger.js
+│   ├── modules/
+│   │   ├── auth/
+│   │   ├── users/
+│   │   ├── categories/
+│   │   ├── subcategories/
+│   │   ├── courses/
+│   │   ├── course-seo/
+│   │   ├── course-offers/
+│   │   ├── course-curriculum/
+│   │   ├── course-batches/
+│   │   ├── course-materials/
+│   │   ├── instructors/
+│   │   ├── demo/
+│   │   ├── eligibility/
+│   │   ├── enrollments/
+│   │   ├── wishlist/
+│   │   ├── reviews/
+│   │   ├── analytics/
+│   │   ├── uploads/
+│   │   ├── notifications/
+│   │   └── audit-logs/
+│   ├── jobs/              analytics aggregation, offer expiry,
+│   │                      enrollment expiry, token cleanup
+│   ├── utils/             slug.js, pricing.js, response.js, pagination.js
+│   ├── app.js
+│   └── server.js
+├── migrations/            SQL files (001_users.sql, 002_categories.sql ...)
+├── seeds/                 super admin seed
+├── uploads/               public/ aur private/
+└── .env
+Har module me same pattern: routes → controller → service → repository → validation. Route sirf request leta hai, controller response banata hai, service me business logic hota hai, repository sirf SQL chalati hai.
+3. Roles aur access matrix
+Role hamesha MySQL ke users.role se aayega; Google token ya frontend se kabhi nahi. Pehla super_admin seed script se banega (SUPER_ADMIN_EMAIL).
+
+Kaam
+guest
+user
+counsellor
+admin
+super_admin
+Category, subcategory, course dekhna
+Haan
+Haan
+Haan
+Haan
+Haan
+View count record karna
+Haan
+Haan
+Haan
+Haan
+Haan
+Demo request bhejna
+Nahi
+Haan
+Haan
+Haan
+Haan
+Eligibility check, wishlist, review
+Nahi
+Haan
+Haan
+Haan
+Haan
+Apne enrollments aur materials
+Nahi
+Haan
+Haan
+Haan
+Haan
+Demo requests dekhna aur update karna
+Nahi
+Nahi
+Haan
+Haan
+Haan
+Category, subcategory, course manage
+Nahi
+Nahi
+Nahi
+Haan
+Haan
+Offers, SEO, materials, batches, instructors
+Nahi
+Nahi
+Nahi
+Haan
+Haan
+Enrollment manual dena, reviews moderate
+Nahi
+Nahi
+Nahi
+Haan
+Haan
+Analytics aur dashboard
+Nahi
+Nahi
+Nahi
+Haan
+Haan
+Users block/unblock
+Nahi
+Nahi
+Nahi
+Haan
+Haan
+Role change, audit logs, admin banana
+Nahi
+Nahi
+Nahi
+Nahi
+Haan
+
+Middleware rules:
+authenticate: cookie ka access token verify karta hai aur req.user = {id, role} set karta hai. Token nahi to 401.
+authorize('admin'): role list me na ho to 403. authorize('counsellor','admin') demo leads ke liye.
+optionalAuth: public APIs par, taaki login user ko user_state (wishlisted, enrolled) mil sake.
+4. Database design (MySQL)
+Engine InnoDB, charset utf8mb4. Har table me id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, created_at, updated_at hote hain. Jahan deleted_at likha hai wahan soft delete hota hai (hard delete nahi). Ye 33 tables hain.
+4.1 Auth aur users
+
+Table
+Columns
+Notes
+users
+google_id (unique), name, email (unique), email_verified, avatar_url, phone, phone_verified, role ENUM(user, counsellor, admin, super_admin), status ENUM(active, blocked), last_login_at, deleted_at
+Role yahin se aata hai
+refresh_tokens
+user_id FK, token_hash, device_info, ip_address, expires_at, revoked_at
+Token plain text store nahi hota, sirf hash
+
+4.2 Catalog hierarchy
+
+Table
+Columns
+Notes
+categories
+name, slug (unique), description, icon_url, banner_url, display_order, status ENUM(active, inactive), seo_title, seo_description, og_image_url, created_by FK users, deleted_at
+Top level
+subcategories
+category_id FK, name, slug, description, image_url, banner_url, display_order, status, seo_title, seo_description, og_image_url, deleted_at
+UNIQUE(category_id, slug)
+instructors
+name, designation, experience_years, bio, photo_url, social_links JSON, status
+Course se link
+courses
+course_code (unique), course_name, slug (unique), short_description, description (LONGTEXT), category_id FK (denormalized), subcategory_id FK (required), instructor_id FK, course_level ENUM(beginner, intermediate, advanced), language, mode ENUM(online, offline, hybrid, self_paced), duration_hours, duration_days, total_modules, total_lessons, thumbnail_url, banner_url, intro_video_url, demo_video_url, alt_text, brochure_url, syllabus_url, gallery_images JSON, price DECIMAL(10,2), offer_price DECIMAL(10,2) NULL, currency (default INR), tax_inclusive, gst_percentage, is_free, refund_policy, refund_days, is_featured, is_new, is_trending, display_order, status ENUM(draft, published, archived), total_views, unique_visitors, enquiry_count, demo_request_count, wishlist_count, share_count, enrollment_count, rating_avg, rating_count, published_at, created_by, updated_by, deleted_at
+Counters backend se update hote hain, client se nahi
+course_slug_history
+course_id FK, old_slug, new_slug
+301 redirect ke liye
+
+4.3 Course ke andar ka data
+
+Table
+Columns
+Notes
+course_seo
+course_id FK (unique), seo_title, seo_description, focus_keyword, canonical_url, og_title, og_description, og_image_url, robots_directive, schema_type, schema_markup JSON
+1 course = 1 row
+course_tags
+course_id FK, tag
+SEO aur search tags
+course_points
+course_id FK, point_type ENUM(learn, tool, prerequisite, required_skill), text, display_order
+what_you_will_learn, tools_covered
+course_faqs
+course_id FK, question, answer, display_order
+
+
+course_testimonials
+course_id FK, name, text, video_url, photo_url, is_active
+Admin dwara add
+course_modules
+course_id FK, title, description, display_order, is_published
+
+
+course_lessons
+module_id FK, title, description, lesson_type ENUM(video, article, quiz, assignment), content_url, duration_seconds, is_preview, is_published, display_order
+
+
+course_materials
+course_id FK, title, material_type ENUM(brochure, syllabus, notes, worksheet, project, recording, other), file_path, file_type, file_size_bytes, is_preview, requires_enrollment, display_order, uploaded_by
+Paid files private folder me
+course_batches
+course_id FK, batch_name, start_date, end_date, class_days, class_timing, total_seats, seats_available, enrollment_deadline, location, status
+
+
+course_benefits
+course_id FK (unique), certificate_enabled, certificate_type, career_support_enabled, mock_interviews, resume_support, placement_assistance, internship_support, project_count, lifetime_access, access_duration_days
+Sirf wahi true karo jo sach me dete ho
+course_enrollment_settings
+course_id FK (unique), enrollment_limit, enrollment_start_at, enrollment_end_at, drip_content_enabled
+
+
+
+4.4 Offers (sirf display aur discount calculation)
+
+Table
+Columns
+Notes
+course_offers
+course_id FK, offer_name, discount_type ENUM(percentage, fixed), discount_value, coupon_code, starts_at, ends_at, usage_limit, usage_count, per_user_limit, is_active
+Expiry ke baad offer_price valid nahi
+course_installment_plans
+course_id FK, plan_name, installment_count, installment_amount, interval_days, is_active
+Sirf info dikhane ke liye abhi
+
+4.5 Demo aur eligibility
+
+Table
+Columns
+Notes
+course_demo_settings
+course_id FK (unique), demo_enabled, demo_request_enabled, demo_type, demo_duration_minutes, demo_schedule, time_slots JSON, accepting_requests, request_start_at, request_end_at, max_requests_per_slot, allowed_demo_types JSON, meeting_platform, requires_approval, form_title, submit_button_text, success_message, form_fields JSON, custom_questions JSON, honeypot_enabled, rate_limit_per_hour
+Form ka poora setup
+demo_requests
+reference_no (unique), course_id FK, user_id FK, student_name, email, phone, city, current_qualification, experience_level, preferred_demo_type, preferred_date, preferred_time, message, custom_answers JSON, consent_given, consent_at, source, utm_source, utm_medium, utm_campaign, ip_address, status ENUM(pending, contacted, scheduled, completed, cancelled), assigned_to FK users, admin_notes, scheduled_at, meeting_link, attended, completed_at, follow_up_at, converted_to_enrollment, enrollment_id, deleted_at
+Student data sirf yahin
+demo_request_activity_log
+demo_request_id FK, action, old_status, new_status, note, performed_by FK users
+Kisne kab kya badla
+course_eligibility_rules
+course_id FK (unique), eligibility_enabled, minimum_qualification, minimum_percentage, eligible_streams JSON, minimum_age, maximum_age, required_skills JSON, experience_required, custom_questions JSON, disclaimer
+
+
+eligibility_checks
+user_id FK, course_id FK, answers JSON, result ENUM(eligible, not_eligible), message, checked_at
+
+
+
+4.6 Enrollment aur engagement (payment ke bina)
+
+Table
+Columns
+Notes
+course_enrollments
+user_id FK, course_id FK, batch_id FK NULL, enrolled_by FK users, enrollment_source ENUM(free, admin_manual, demo_convert), enrollment_status ENUM(active, expired, cancelled, completed), enrolled_at, access_expires_at, completed_at, notes
+UNIQUE(user_id, course_id)
+lesson_progress
+user_id FK, lesson_id FK, completed, last_position_seconds
+UNIQUE(user_id, lesson_id)
+wishlists
+user_id FK, course_id FK
+UNIQUE(user_id, course_id)
+course_reviews
+user_id FK, course_id FK, rating 1-5, title, text, moderation_status ENUM(pending, approved, rejected), is_verified_enrollment
+UNIQUE(user_id, course_id)
+
+4.7 Analytics aur system
+
+Table
+Columns
+Notes
+course_views
+course_id FK, user_id FK NULL, session_id, viewed_at, referrer, source ENUM(organic, direct, social, campaign), device_type ENUM(desktop, mobile, tablet)
+Raw events
+course_analytics_daily
+course_id FK, analytics_date, total_views, unique_visitors, enquiry_count, demo_request_count, wishlist_add_count, enrollment_count
+UNIQUE(course_id, analytics_date)
+audit_logs
+actor_id FK, action, entity_type, entity_id, old_value JSON, new_value JSON, ip_address
+Admin ka har change
+notifications
+user_id FK NULL, type, channel ENUM(email, whatsapp, inapp), recipient, payload JSON, status ENUM(queued, sent, failed), sent_at
+Abhi sirf queue; bhejna baad me
+
+4.8 Relationships
+categories 1 → N subcategories, subcategories 1 → N courses, instructors 1 → N courses.
+courses 1 → 1: course_seo, course_demo_settings, course_eligibility_rules, course_benefits, course_enrollment_settings.
+courses 1 → N: course_tags, course_points, course_faqs, course_testimonials, course_modules, course_materials, course_batches, course_offers, course_installment_plans, course_slug_history, course_views, course_analytics_daily.
+course_modules 1 → N course_lessons, course_lessons 1 → N lesson_progress.
+users 1 → N: demo_requests, eligibility_checks, course_enrollments, wishlists, course_reviews, refresh_tokens.
+demo_requests 1 → N demo_request_activity_log; demo_requests 0..1 → 1 course_enrollments (convert hone par).
+4.9 Indexes
+courses(slug), courses(subcategory_id, status), courses(status, published_at), courses(category_id, status), subcategories(category_id, slug), demo_requests(course_id, status), demo_requests(phone, course_id), demo_requests(email, course_id), course_enrollments(user_id, course_id), course_views(course_id, viewed_at), users(email), users(google_id).
+5. API standards
+Saari APIs ka base path /api. Request aur response JSON me hote hain (sirf file upload multipart/form-data). Auth cookies se chalta hai: access_token aur refresh_token httpOnly, secure, sameSite cookies.
+Success response:
+{ "success": true, "message": "Course created successfully", "data": { } }
+List response (pagination ke saath):
+{
+  "success": true,
+  "data": [ ],
+  "pagination": { "page": 1, "limit": 12, "total": 48, "total_pages": 4 }
+}
+Error response:
+{
+  "success": false,
+  "message": "Validation failed",
+  "errors": [ { "field": "course_name", "message": "Course name is required" } ]
+}
+HTTP status codes:
+
+Code
+Matlab
+200
+OK (get, update)
+201
+Created
+400
+Validation error ya business rule fail
+401
+Login nahi hai ya token expire
+403
+Role ko permission nahi
+404
+Record nahi mila ya published nahi
+409
+Duplicate (slug, email, active demo request)
+429
+Rate limit
+500
+Server error (details user ko mat dikhao, log me rakho)
+
+Common query params (list APIs):
+
+Param
+Type
+Default
+Kaam
+page
+int
+1
+Page number
+limit
+int
+12 (admin 20), max 100
+Per page records
+sort
+string
+newest
+newest, popular, price_asc, price_desc, rating, name
+search
+string
+-
+Naam ya keyword me search
+
+Rules jo har API par lagu hain:
+Public APIs sirf status = published aur category/subcategory active wale records dete hain.
+Price, discount_percentage, rating, views, seats, counts hamesha backend calculate karta hai. Client se aaye in fields ko ignore karo.
+Dates ISO 8601 (2026-11-05T18:00:00+05:30), timezone Asia/Kolkata.
+Unknown fields request me aaye to reject ya ignore karo, DB me direct mat daalo (mass assignment se bacho).
+Saari SQL queries parameterized hongi (? placeholders).
+6. Auth APIs (Google login)
+Tables: users, refresh_tokens.
+Method
+Endpoint
+Access
+Kaam
+POST
+/api/auth/google
+Public
+Google ID token se login ya signup
+POST
+/api/auth/refresh
+Cookie (refresh)
+Naya access token
+POST
+/api/auth/logout
+Login
+Refresh token revoke
+POST
+/api/auth/logout-all
+Login
+Saare devices se logout
+GET
+/api/auth/me
+Login
+Current user + role
+PATCH
+/api/auth/me
+Login
+Apna phone, naam update
+
+POST /api/auth/google
+Body field
+Type
+Required
+Rule
+id_token
+string
+Yes
+Google se mila ID token
+
+Backend steps: Google se token verify (audience = GOOGLE_CLIENT_ID, expiry, email_verified = true) → google_id se user dhundo → nahi mila to naya user (role user) → access token (15 min) aur refresh token (30 din, DB me hash) banao → dono ko httpOnly cookies me set karo → last_login_at update.
+{
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "user": {
+      "id": 7, "name": "Rahul Verma", "email": "rahul@gmail.com",
+      "avatar_url": "https://...", "phone": null,
+      "phone_verified": false, "role": "user"
+    }
+  }
+}
+Errors: 400 invalid ya expired Google token, 403 user blocked.
+POST /api/auth/refresh
+Body nahi. Refresh cookie ka hash DB se match karo, revoked ya expired nahi ho. Purana token revoke karo aur naya refresh token do (rotation). Agar revoked token dobara use ho to us user ke saare tokens revoke karo.
+Response: { "success": true, "message": "Token refreshed" }. Fail hone par 401.
+GET /api/auth/me
+Response data: id, name, email, avatar_url, phone, phone_verified, role, status, created_at.
+PATCH /api/auth/me
+Body field
+Type
+Rule
+name
+string
+2 se 100 characters
+phone
+string
+Regex ^[6-9][0-9]{9}$. Phone badalne par phone_verified = false
+
+role, email, status is API se kabhi change nahi honge.
+7. Category APIs
+Tables: categories (child: subcategories). Public APIs sirf status = active aur deleted_at IS NULL wali categories dikhati hain.
+7.1 Public
+Method
+Endpoint
+Kaam
+GET
+/api/categories
+Saari active categories, optional subcategories ke saath (menu aur home ke liye)
+GET
+/api/categories/:slug
+Category page: info, SEO, breadcrumbs, uski subcategories
+
+GET /api/categories
+Query param
+Type
+Default
+Kaam
+include
+string
+-
+subcategories do to har category ke andar subcategories bhi aayengi
+
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1, "name": "DSA", "slug": "dsa",
+      "description": "...", "icon_url": "...", "banner_url": "...",
+      "total_courses": 14,
+      "subcategories": [
+        { "id": 5, "name": "JavaScript", "slug": "javascript", "image_url": "...", "total_courses": 6 }
+      ]
+    }
+  ]
+}
+GET /api/categories/:slug response data: category {id, name, slug, description, icon_url, banner_url, total_courses, seo {seo_title, seo_description, og_image_url, canonical_url}}, breadcrumbs [{label, url}], subcategories [{id, name, slug, description, image_url, total_courses}]. Slug nahi mila ya inactive ho to 404.
+7.2 Admin (role: admin, super_admin)
+Method
+Endpoint
+Kaam
+GET
+/api/admin/categories
+List (inactive bhi), filters: status, search, page, limit
+GET
+/api/admin/categories/:id
+Ek category ki full detail
+POST
+/api/admin/categories
+Nayi category
+PATCH
+/api/admin/categories/:id
+Update
+PATCH
+/api/admin/categories/reorder
+display_order badalna
+DELETE
+/api/admin/categories/:id
+Soft delete
+
+POST /api/admin/categories body
+Field
+Type
+Required
+Rule
+name
+string
+Yes
+2 se 100 chars
+slug
+string
+No
+Na doge to name se auto banega. Unique, lowercase, hyphen
+description
+string
+No
+Max 1000
+icon_url
+string
+No
+Upload API se mila path
+banner_url
+string
+No
+Upload API se mila path
+display_order
+int
+No
+Default 0
+status
+enum
+No
+active (default), inactive
+seo_title
+string
+No
+Max 70
+seo_description
+string
+No
+Max 160
+og_image_url
+string
+No
+Path
+
+Response 201: data {id, name, slug, status, display_order, created_at}. Duplicate slug par 409.
+PATCH /api/admin/categories/reorder body
+{ "items": [ { "id": 1, "display_order": 1 }, { "id": 2, "display_order": 2 } ] }
+Rules:
+Category inactive karne par uski subcategories aur courses public se hide ho jate hain (data delete nahi hota).
+Delete tabhi chalega jab category me koi active subcategory na ho, warna 409 Category has subcategories.
+Har create, update, delete audit_logs me jata hai.
+8. Subcategory APIs
+Tables: subcategories (parent: categories, child: courses). Subcategory slug sirf apni category ke andar unique hota hai.
+8.1 Public
+Method
+Endpoint
+Kaam
+GET
+/api/categories/:catSlug/subcategories
+Ek category ki subcategories
+GET
+/api/categories/:catSlug/subcategories/:subSlug
+Subcategory page: info, SEO, filters aur us subcategory ke saare courses
+
+GET /api/categories/:catSlug/subcategories/:subSlug
+Query param
+Type
+Default
+Kaam
+level
+enum
+all
+beginner, intermediate, advanced
+language
+string
+all
+Hindi, English ...
+mode
+enum
+all
+online, offline, hybrid, self_paced
+min_price
+number
+-
+Minimum effective price
+max_price
+number
+-
+Maximum effective price
+has_offer
+boolean
+-
+Sirf offer wale
+sort
+enum
+newest
+newest, popular, price_asc, price_desc, rating
+page, limit
+int
+1, 12
+Pagination
+
+{
+  "success": true,
+  "data": {
+    "category": { "id": 1, "name": "DSA", "slug": "dsa" },
+    "subcategory": {
+      "id": 5, "name": "JavaScript", "slug": "javascript",
+      "description": "JavaScript ke saath DSA courses",
+      "banner_url": "...", "total_courses": 6,
+      "seo": { "seo_title": "...", "seo_description": "...", "canonical_url": "...", "og_image_url": "..." }
+    },
+    "breadcrumbs": [
+      { "label": "Home", "url": "/" },
+      { "label": "DSA", "url": "/courses/dsa" },
+      { "label": "JavaScript", "url": "/courses/dsa/javascript" }
+    ],
+    "filters_available": {
+      "levels": ["beginner", "intermediate", "advanced"],
+      "languages": ["Hindi", "English"],
+      "modes": ["online", "hybrid"],
+      "price_range": { "min": 999, "max": 14999 }
+    },
+    "courses": [
+      {
+        "id": 101, "course_name": "Complete JavaScript DSA",
+        "slug": "complete-javascript-dsa",
+        "url": "/courses/dsa/javascript/complete-javascript-dsa",
+        "short_description": "...", "thumbnail_url": "...", "alt_text": "...",
+        "course_level": "beginner", "language": "Hindi", "mode": "online",
+        "duration_hours": 80, "total_lessons": 80,
+        "instructor": { "id": 12, "name": "Rahul Sharma", "photo_url": "..." },
+        "pricing": {
+          "price": 9999, "offer_price": 4999, "discount_percentage": 50,
+          "offer_active": true, "offer_ends_at": "2026-11-30T23:59:59+05:30"
+        },
+        "rating": { "average": 4.6, "count": 340 },
+        "badges": { "is_featured": true, "is_new": true, "is_trending": false },
+        "demo_enabled": true,
+        "seats_available": 35,
+        "next_batch_start": "2026-11-10",
+        "stats": { "total_views": 15200, "enrollment_count": 340 },
+        "user_state": { "wishlisted": false, "enrolled": false }
+      }
+    ]
+  },
+  "pagination": { "page": 1, "limit": 12, "total": 6, "total_pages": 1 }
+}
+user_state sirf tab aata hai jab user login ho (optionalAuth). Category ya subcategory slug galat, inactive ya mismatch ho to 404.
+8.2 Admin (role: admin, super_admin)
+Method
+Endpoint
+Kaam
+GET
+/api/admin/subcategories
+List. Filters: category_id, status, search, page, limit
+GET
+/api/admin/subcategories/:id
+Detail
+POST
+/api/admin/subcategories
+Nayi subcategory
+PATCH
+/api/admin/subcategories/:id
+Update ya dusri category me move
+PATCH
+/api/admin/subcategories/reorder
+display_order
+DELETE
+/api/admin/subcategories/:id
+Soft delete
+
+POST /api/admin/subcategories body
+Field
+Type
+Required
+Rule
+category_id
+int
+Yes
+Existing active category
+name
+string
+Yes
+2 se 100 chars
+slug
+string
+No
+Auto generate. Category ke andar unique
+description
+string
+No
+Max 1000
+image_url, banner_url
+string
+No
+Upload API ka path
+display_order
+int
+No
+Default 0
+status
+enum
+No
+active (default), inactive
+seo_title, seo_description, og_image_url
+string
+No
+Max 70, 160, path
+
+Rules:
+Subcategory move karne par uske saare courses ka category_id bhi update hoga, aur har course ka purana URL course_slug_history me save hoga (301 redirect).
+Subcategory me courses hon to delete 409 deta hai (Subcategory has courses); pehle courses move ya archive karo.
+Inactive subcategory ke courses public listing se hide ho jate hain.
+9. Course APIs
+Tables: courses (core), joined at read time with course_seo, course_offers, course_points, course_faqs, course_testimonials, course_modules, course_lessons, course_batches, course_benefits, course_enrollment_settings, course_demo_settings, course_eligibility_rules, instructors.
+9.1 Public
+Method
+Endpoint
+Kaam
+GET
+/api/courses
+Saare published courses with filters (search page ya all courses ke liye)
+GET
+/api/courses/:slug
+Course page: ek call me poori detail
+GET
+/api/courses/:id/reviews
+Approved reviews
+GET
+/api/search
+Course, category, subcategory search
+
+GET /api/courses query params: category (slug), subcategory (slug), level, language, mode, min_price, max_price, has_offer, is_featured, instructor_id, rating_min, search, sort, page, limit. Response ka har item subcategory page ke course card jaisa hota hai (section 8).
+GET /api/search query: q (required, min 2 chars), type (course, category, subcategory, all), limit (default 10). Response: data { courses [], categories [], subcategories [] }.
+GET /api/courses/:id/reviews query: page, limit, sort (newest, rating_high, rating_low). Item: {id, user_name, avatar_url, rating, title, text, created_at}. Email ya phone kabhi nahi.
+9.2 GET /api/courses/:slug (course detail)
+Sirf published course, jiski category aur subcategory active ho. Login user ho to user_state bhi aata hai. Backend offer ki validity check karke decide karta hai ki offer_price dikhana hai ya nahi.
+Section
+Fields
+Basic
+id, course_code, course_name, slug, short_description, description, category {id, name, slug}, subcategory {id, name, slug}, tags[], course_level, language, mode, duration_hours, duration_days, total_modules, total_lessons, status, badges {is_featured, is_new, is_trending}
+url, breadcrumbs
+url, breadcrumbs [{label, url}]
+media
+thumbnail_url, banner_url, gallery_images[], intro_video_url, demo_video_url, alt_text
+instructor
+id, name, designation, experience_years, bio, photo_url
+pricing
+price, offer_price, discount_percentage, currency, tax_inclusive, gst_percentage, is_free, offer {offer_name, discount_type, discount_value, coupon_code, starts_at, ends_at, is_active}, installment {enabled, plans[{plan_name, installment_count, installment_amount, interval_days}]}, refund_policy, refund_days
+demo
+demo_enabled, demo_request_enabled, demo_type, demo_duration_minutes, demo_schedule, time_slots[], booking {accepting_requests, request_start_at, request_end_at, slots_available, allowed_demo_types[], available_dates[], timezone, meeting_platform, requires_approval}, form {form_title, submit_button_text, success_message, fields[], custom_questions[], captcha_enabled}, stats {demo_request_count}
+eligibility
+eligibility_enabled, minimum_qualification, minimum_percentage, eligible_streams[], minimum_age, maximum_age, required_skills[], experience_required, custom_questions[], disclaimer
+files
+brochure_url, syllabus_url
+curriculum
+[{module_id, title, display_order, lessons[{lesson_id, title, lesson_type, duration_seconds, is_preview}]}]
+learning
+what_you_will_learn[], tools_covered[]
+enrollment
+enrollment_limit, seats_available, enrollment_start_at, enrollment_end_at, access_duration_days, lifetime_access, drip_content_enabled
+batches
+[{batch_id, batch_name, start_date, class_days, class_timing, seats_available}]
+benefits
+certificate_enabled, certificate_type, career_support_enabled, mock_interviews, resume_support, placement_assistance, internship_support, project_count
+social proof
+reviews_summary {average_rating, review_count}, faqs[], testimonials[]
+stats
+total_views, unique_visitors, enquiry_count, demo_request_count, wishlist_count, share_count, enrollment_count
+seo
+seo_title, seo_description, focus_keyword, seo_tags[], canonical_url, og_title, og_description, og_image_url, robots_directive, schema_type, schema_markup
+user_state
+wishlisted, enrolled, demo_requested, demo_status, eligibility_result (sirf login par)
+times
+published_at, updated_at
+
+Public response me kabhi nahi: kisi student ka naam, phone, email, admin_notes, demo_requests ki list. Sirf counts jate hain.
+Slug purana ho (course_slug_history me mila) to 301 redirect do; kahin bhi na mile, draft ho ya archived ho to 404.
+9.3 Admin
+Method
+Endpoint
+Kaam
+GET
+/api/admin/courses
+List, draft aur archived bhi
+GET
+/api/admin/courses/:id
+Full detail (saare sections edit ke liye)
+POST
+/api/admin/courses
+Course banao (status draft)
+PATCH
+/api/admin/courses/:id
+Basic fields update
+PATCH
+/api/admin/courses/:id/status
+draft, published, archived
+POST
+/api/admin/courses/:id/duplicate
+Course ki copy (draft)
+DELETE
+/api/admin/courses/:id
+Soft delete
+
+GET /api/admin/courses filters: status, category_id, subcategory_id, instructor_id, search, is_featured, created_from, created_to, sort, page, limit. Item: id, course_code, course_name, slug, status, category, subcategory, price, offer_price, total_views, demo_request_count, enrollment_count, rating_avg, updated_at.
+POST /api/admin/courses body
+Field
+Type
+Required
+Rule
+course_code
+string
+Yes
+Unique, max 50
+course_name
+string
+Yes
+3 se 255 chars
+slug
+string
+No
+Auto, unique
+short_description
+string
+Yes
+Max 500
+description
+string (HTML)
+Yes
+Sanitize karo (script tags hatao)
+subcategory_id
+int
+Yes
+Active subcategory; category_id backend khud set karega
+instructor_id
+int
+No
+Existing instructor
+course_level
+enum
+Yes
+beginner, intermediate, advanced
+language
+string
+Yes
+Hindi, English, Hinglish
+mode
+enum
+Yes
+online, offline, hybrid, self_paced
+duration_hours
+decimal
+Yes
+0 se zyada
+duration_days
+int
+No
+
+
+thumbnail_url
+string
+Yes (publish ke liye)
+Upload API path
+banner_url, intro_video_url, demo_video_url, alt_text
+string
+No
+
+
+gallery_images
+string[]
+No
+Max 10
+brochure_url, syllabus_url
+string
+No
+
+
+price
+decimal
+Yes
+0 ya zyada
+offer_price
+decimal
+No
+price se zyada nahi
+currency
+string
+No
+Default INR
+tax_inclusive, gst_percentage
+bool, decimal
+No
+
+
+is_free
+bool
+No
+true ho to price 0
+refund_policy, refund_days
+string, int
+No
+
+
+tags
+string[]
+No
+Max 20
+what_you_will_learn, tools_covered, prerequisites
+string[]
+No
+
+
+is_featured, is_new, is_trending
+bool
+No
+Default false
+display_order
+int
+No
+Default 0
+
+Backend ye khud set karta hai (body me aaye to ignore): id, category_id, status (draft), counters, rating, total_modules, total_lessons (curriculum se), created_by, updated_by, timestamps.
+Response 201: data {id, course_code, course_name, slug, status: "draft", price, offer_price, created_by, created_at}.
+PATCH /api/admin/courses/:id/status body: { "status": "published" }. Publish se pehle ye checks pass hone chahiye, warna 400 aur missing fields ki list:
+course_name, short_description, description, thumbnail_url, price, course_level, language, mode
+slug unique aur SEO title/description bhara hua
+subcategory aur category active
+kam se kam 1 module ya syllabus_url
+Publish par published_at set hota hai. Slug badalne par purana slug course_slug_history me jata hai.
+DELETE soft delete karta hai (deleted_at). Agar course me active enrollments hain to sirf archive ki permission do, delete 409.
+10. Course SEO, pricing aur offers APIs
+Saari APIs admin only (role: admin, super_admin). Public site ko ye data course detail API ke andar milta hai.
+10.1 SEO
+Tables: course_seo, course_tags, course_slug_history.
+Method
+Endpoint
+Kaam
+GET
+/api/admin/courses/:id/seo
+SEO data
+PUT
+/api/admin/courses/:id/seo
+SEO poora save (upsert)
+
+PUT body
+Field
+Type
+Required
+Rule
+seo_title
+string
+Yes
+Max 70
+seo_description
+string
+Yes
+Max 160
+focus_keyword
+string
+No
+
+
+seo_tags
+string[]
+No
+Max 20, course_tags me jata hai
+slug
+string
+No
+Badla to unique check, purana slug history me
+canonical_url
+string
+No
+Valid URL
+og_title, og_description
+string
+No
+
+
+og_image_url
+string
+No
+Upload path
+robots_directive
+enum
+No
+index,follow (default), noindex,follow, noindex,nofollow
+schema_type
+string
+No
+Default Course
+schema_markup
+object
+No
+JSON-LD, backend validate kare
+
+Sirf SEO fields bharne se ranking guarantee nahi hoti; page content aur technical SEO bhi zaroori hai.
+10.2 Pricing
+Tables: courses (price columns), course_installment_plans.
+Method
+Endpoint
+Kaam
+GET
+/api/admin/courses/:id/pricing
+Current pricing
+PUT
+/api/admin/courses/:id/pricing
+Price update
+GET, POST
+/api/admin/courses/:id/installments
+EMI plans list, add (sirf information)
+PATCH, DELETE
+/api/admin/courses/:id/installments/:planId
+Plan edit, delete
+
+PUT pricing body
+Field
+Type
+Required
+Rule
+price
+decimal
+Yes
+0 ya zyada
+offer_price
+decimal
+No
+price se zyada nahi, warna 400
+currency
+string
+No
+INR
+tax_inclusive
+bool
+No
+
+
+gst_percentage
+decimal
+No
+0 se 100
+is_free
+bool
+No
+
+
+refund_policy
+string
+No
+
+
+refund_days
+int
+No
+
+
+
+Response: data {course_id, price, offer_price, discount_percentage, currency}. discount_percentage backend nikalta hai.
+POST installments body: plan_name (string, required), installment_count (int 2+, required), installment_amount (decimal, required), interval_days (int, required), is_active (bool).
+10.3 Offers
+Table: course_offers.
+Method
+Endpoint
+Kaam
+GET
+/api/admin/courses/:id/offers
+Offers list
+POST
+/api/admin/courses/:id/offers
+Offer banao
+PATCH
+/api/admin/courses/:id/offers/:offerId
+Offer edit, on/off
+DELETE
+/api/admin/courses/:id/offers/:offerId
+Offer hatao
+
+POST body
+Field
+Type
+Required
+Rule
+offer_name
+string
+Yes
+e.g. Diwali Offer
+discount_type
+enum
+Yes
+percentage, fixed
+discount_value
+decimal
+Yes
+percentage me 1 se 100
+coupon_code
+string
+No
+Unique, uppercase
+starts_at
+datetime
+Yes
+
+
+ends_at
+datetime
+Yes
+starts_at ke baad
+usage_limit
+int
+No
+Total kitni baar
+per_user_limit
+int
+No
+Default 1
+is_active
+bool
+No
+Default true
+
+Response 201: data {id, offer_name, discount_type, discount_value, coupon_code, usage_limit, usage_count: 0, starts_at, ends_at, is_active}.
+Pricing rule (backend):
+active offer = is_active AND starts_at <= now <= ends_at AND (usage_limit is null OR usage_count < usage_limit)
+percentage:  offer_price = price - (price * discount_value / 100)
+fixed:       offer_price = price - discount_value   (kabhi 0 se neeche nahi)
+discount_percentage = round((price - offer_price) / price * 100)
+Offer expire hote hi public API offer_price ko null kar deti hai. Ye check har request par ya ek hourly job (section 19) se hota hai.
+11. Curriculum, batches aur instructors APIs
+Saari write APIs admin only. Course detail API inka data read karke dikhati hai.
+11.1 Curriculum (modules aur lessons)
+Tables: course_modules, course_lessons.
+Method
+Endpoint
+Kaam
+GET
+/api/admin/courses/:id/curriculum
+Modules + lessons ek saath
+POST
+/api/admin/courses/:id/modules
+Module add
+PATCH
+/api/admin/modules/:moduleId
+Module edit
+DELETE
+/api/admin/modules/:moduleId
+Module hatao (lessons ke saath soft delete)
+POST
+/api/admin/modules/:moduleId/lessons
+Lesson add
+PATCH
+/api/admin/lessons/:lessonId
+Lesson edit
+DELETE
+/api/admin/lessons/:lessonId
+Lesson hatao
+PATCH
+/api/admin/courses/:id/curriculum/reorder
+Modules aur lessons ka order
+
+Module body: title (string, required, max 255), description (string), display_order (int), is_published (bool, default false).
+Lesson body
+Field
+Type
+Required
+Rule
+title
+string
+Yes
+Max 255
+description
+string
+No
+
+
+lesson_type
+enum
+Yes
+video, article, quiz, assignment
+content_url
+string
+No
+Video link ya uploaded file path
+duration_seconds
+int
+No
+
+
+is_preview
+bool
+No
+true ho to bina enroll dekh sakte hain
+is_published
+bool
+No
+Default false
+display_order
+int
+No
+
+
+
+Har module ya lesson ke add, delete par course ke total_modules, total_lessons, duration_hours backend dobara calculate karta hai.
+Reorder body: { "modules": [ { "id": 3, "display_order": 1, "lessons": [ { "id": 11, "display_order": 1 } ] } ] }.
+11.2 Batches
+Table: course_batches.
+Method
+Endpoint
+Kaam
+GET
+/api/courses/:id/batches
+Public: upcoming batches (status open)
+GET
+/api/admin/courses/:id/batches
+Admin: saare batches
+POST
+/api/admin/courses/:id/batches
+Batch add
+PATCH
+/api/admin/batches/:batchId
+Edit
+DELETE
+/api/admin/batches/:batchId
+Delete (enrollments ho to 409)
+
+Batch body
+Field
+Type
+Required
+Rule
+batch_name
+string
+Yes
+e.g. Nov 2026
+start_date
+date
+Yes
+
+
+end_date
+date
+No
+start_date ke baad
+class_days
+string
+No
+Mon-Fri
+class_timing
+string
+No
+7 PM - 9 PM
+total_seats
+int
+Yes
+1 ya zyada
+enrollment_deadline
+date
+No
+
+
+location
+string
+No
+Offline batch ke liye
+status
+enum
+No
+open (default), full, closed, completed
+
+seats_available backend nikalta hai (total_seats minus active enrollments). Seats 0 hone par status automatic full ho jata hai.
+11.3 Instructors
+Table: instructors.
+Method
+Endpoint
+Kaam
+GET
+/api/instructors/:id
+Public instructor profile aur uske published courses
+GET
+/api/admin/instructors
+List. Filters: status, search, page, limit
+POST
+/api/admin/instructors
+Instructor add
+PATCH
+/api/admin/instructors/:id
+Edit
+DELETE
+/api/admin/instructors/:id
+Soft delete. Courses assigned ho to 409
+
+Body: name (required), designation, experience_years (int), bio, photo_url (upload path), social_links (object: linkedin, youtube, twitter, website), status (active, inactive).
+11.4 Course ke chhote sections (FAQs, testimonials, benefits, enrollment settings)
+Method
+Endpoint
+Table
+Kaam
+GET, PUT
+/api/admin/courses/:id/faqs
+course_faqs
+List aur poori list replace. Item: question, answer, display_order
+GET, PUT
+/api/admin/courses/:id/testimonials
+course_testimonials
+Item: name, text, video_url, photo_url, is_active
+GET, PUT
+/api/admin/courses/:id/benefits
+course_benefits
+certificate_enabled, certificate_type (completion, assessment), career_support_enabled, mock_interviews, resume_support, placement_assistance, internship_support, project_count, lifetime_access, access_duration_days
+GET, PUT
+/api/admin/courses/:id/enrollment-settings
+course_enrollment_settings
+enrollment_limit, enrollment_start_at, enrollment_end_at, drip_content_enabled
+GET, PUT
+/api/admin/courses/:id/points
+course_points
+Items: point_type (learn, tool, prerequisite, required_skill), text, display_order
+
+Benefits me sirf wahi true karo jo aap sach me provide karte ho; placement ya job guarantee ka claim tabhi karo jab terms usko support karte hon.
+12. Uploads aur course materials APIs
+CDN nahi hai, isliye files server ki local disk par rahengi aur Express se serve hongi.
+Storage layout:
+Folder
+Kya rakhna hai
+Access
+uploads/public/images
+Thumbnail, banner, category icon, instructor photo, OG image
+Public, express.static se /files/...
+uploads/public/docs
+Free brochure, syllabus
+Public
+uploads/private/materials
+Paid notes, worksheets, project files, recordings
+Sirf authorized API se
+
+Paid files ka direct public URL kabhi mat do. File name random (UUID) rakho, original name DB me.
+12.1 Uploads
+Table: course_materials (file metadata), baaki jagah sirf path store hota hai.
+Method
+Endpoint
+Access
+Kaam
+POST
+/api/admin/uploads
+admin
+File upload, path wapas milta hai
+DELETE
+/api/admin/uploads
+admin
+Unused file hatana (body: path)
+
+POST /api/admin/uploads (multipart/form-data)
+Field
+Type
+Required
+Rule
+file
+file
+Yes
+Ek file
+purpose
+enum
+Yes
+image, document, material
+
+Validation: image sirf jpg, png, webp (max 2 MB); document sirf pdf (max 10 MB); material pdf, zip, docx, xlsx, mp4 (max MAX_UPLOAD_MB). Extension ke saath file ka asli type (magic bytes) bhi check karo. purpose = material private folder me jati hai.
+{
+  "success": true,
+  "data": {
+    "path": "/files/images/9c1f2a-js-dsa.webp",
+    "file_type": "image/webp",
+    "file_size_bytes": 184320
+  }
+}
+Image ke liye thumbnail_url jaisi fields me ye path hi daalna hai. Recommended size: thumbnail 800x450, banner 1600x600.
+12.2 Course materials
+Table: course_materials.
+Method
+Endpoint
+Access
+Kaam
+GET
+/api/courses/:id/materials
+optionalAuth
+Jo files is user ko dikhni chahiye (neeche rule)
+GET
+/api/courses/:id/materials/:materialId/download
+Login ya public
+File download
+GET
+/api/admin/courses/:id/materials
+admin
+Saari materials
+POST
+/api/admin/courses/:id/materials
+admin
+Material metadata add
+PATCH
+/api/admin/materials/:materialId
+admin
+Edit
+DELETE
+/api/admin/materials/:materialId
+admin
+Delete (file bhi hatao)
+
+POST material body
+Field
+Type
+Required
+Rule
+title
+string
+Yes
+Max 255
+material_type
+enum
+Yes
+brochure, syllabus, notes, worksheet, project, recording, other
+file_path
+string
+Yes
+Upload API se mila path
+file_type
+string
+No
+pdf, zip ... (auto)
+file_size_bytes
+int
+No
+Auto
+is_preview
+bool
+No
+true ho to sabko dikhe
+requires_enrollment
+bool
+No
+Default true
+display_order
+int
+No
+
+
+
+Access rule (GET materials aur download):
+User
+Kya milta hai
+Guest ya bina enrollment
+Sirf requires_enrollment = false ya is_preview = true wali files
+Active enrollment (expire nahi hua)
+Saari files
+admin, super_admin
+Saari files
+
+Download flow (signed link): GET .../materials har private file ke liye download_url deta hai jo ek signed, expiring link hai (HMAC token + expires 10 minute). GET .../download?token=...&expires=... token verify karke file stream karta hai. Expired ya galat token par 403. Isse bina CDN ke bhi private files safe rehti hain.
+13. Demo settings aur demo request APIs
+Tables: course_demo_settings (form ka setup), demo_requests (student ka data), demo_request_activity_log (history), notifications (queue).
+Student ka naam, phone, email course table me nahi rakhte; sirf demo_requests table me. Public course API me sirf counts jate hain.
+13.1 Demo settings (admin)
+Method
+Endpoint
+Kaam
+GET
+/api/admin/courses/:id/demo-settings
+Current setup
+PUT
+/api/admin/courses/:id/demo-settings
+Setup save (upsert)
+
+PUT body
+Field
+Type
+Required
+Rule
+demo_enabled
+bool
+Yes
+Demo hai ya nahi
+demo_request_enabled
+bool
+Yes
+Student request kar sakta hai ya nahi
+demo_type
+enum
+No
+live, recorded
+demo_duration_minutes
+int
+No
+
+
+demo_schedule
+datetime
+No
+Live demo ki date
+time_slots
+string[]
+No
+["10:00", "18:00"]
+accepting_requests
+bool
+No
+Default true
+request_start_at, request_end_at
+datetime
+No
+Requests kab tak lo
+max_requests_per_slot
+int
+No
+Capacity
+allowed_demo_types
+string[]
+No
+live, recorded
+meeting_platform
+string
+No
+zoom, meet ...
+requires_approval
+bool
+No
+
+
+form_title, submit_button_text, success_message
+string
+No
+Form ke texts
+form_fields
+object[]
+No
+{name, label, type, required, options, min_length, max_length, pattern}
+custom_questions
+object[]
+No
+{question, field_type, options, required}
+honeypot_enabled
+bool
+No
+Default true
+rate_limit_per_hour
+int
+No
+Default 5 per IP
+
+Default form fields: student_name, email, phone, city, current_qualification, experience_level, preferred_demo_type, preferred_date, preferred_time, message, consent.
+13.2 Student side
+Method
+Endpoint
+Access
+Kaam
+POST
+/api/courses/:id/demo-requests
+user (login)
+Demo request submit
+GET
+/api/me/demo-requests
+user
+Meri requests aur status
+PATCH
+/api/me/demo-requests/:id/cancel
+user
+Apni pending request cancel
+
+POST /api/courses/:id/demo-requests body
+Field
+Type
+Required
+Rule
+student_name
+string
+Yes
+2 se 100 (Google naam se prefill)
+email
+string
+Yes
+Valid email
+phone
+string
+Yes
+^[6-9][0-9]{9}$
+city
+string
+No
+
+
+current_qualification
+string
+No
+12th, Graduate, Post Graduate, Working Professional
+experience_level
+string
+No
+Fresher, 0-2 years, 2+ years
+preferred_demo_type
+enum
+Yes
+live, recorded (allowed list me ho)
+preferred_date
+date
+No
+Aaj ya baad ki, available dates me
+preferred_time
+string
+No
+time_slots me se
+message
+string
+No
+Max 500
+custom_answers
+object
+No
+Custom questions ke jawab
+consent
+bool
+Yes
+true hona zaruri
+source, utm_source, utm_medium, utm_campaign
+string
+No
+Lead tracking
+
+Backend checks (order me): course published hai, demo_enabled aur demo_request_enabled, accepting_requests, request date range, slot capacity, honeypot field khali, IP rate limit, fields validate, consent true, duplicate check (same user ya phone, same course, jiska status pending, contacted ya scheduled ho).
+Save karte waqt: status = pending, reference_no (DEMO-2026-5001 jaisa), consent_at = now, IP, user_id; activity log entry; course.demo_request_count + 1; admin ke liye notifications queue row.
+{
+  "success": true,
+  "message": "Aapki demo request mil gayi hai. Hamari team jaldi contact karegi.",
+  "data": { "id": 5001, "reference_no": "DEMO-2026-5001", "course_id": 101, "status": "pending", "created_at": "2026-10-23T06:50:00Z" }
+}
+Errors: 400 validation ya demo band, 401 login nahi, 409 You already have an active demo request for this course, 429 Too many requests.
+13.3 Admin aur counsellor
+Role: counsellor, admin, super_admin (settings upar wali admin only).
+Method
+Endpoint
+Kaam
+GET
+/api/admin/demo-requests
+Saari leads, filters ke saath
+GET
+/api/admin/courses/:id/demo-requests
+Ek course ki leads
+GET
+/api/admin/demo-requests/:id
+Ek lead + activity history
+PATCH
+/api/admin/demo-requests/:id
+Status, assignment, schedule update
+PATCH
+/api/admin/demo-requests/bulk
+Kai leads ek saath
+POST
+/api/admin/demo-requests/:id/notes
+Follow-up note
+POST
+/api/admin/demo-requests/:id/convert
+Enrollment me convert (admin)
+GET
+/api/admin/demo-requests/export
+CSV (admin)
+DELETE
+/api/admin/demo-requests/:id
+Soft delete (admin)
+
+List filters: status, course_id, from_date, to_date, demo_type, assigned_to, source, search (naam, phone, email), sort, page, limit.
+{
+  "success": true,
+  "data": {
+    "summary": { "total": 85, "pending": 20, "contacted": 15, "scheduled": 25, "completed": 20, "cancelled": 5 },
+    "requests": [
+      {
+        "id": 5001, "reference_no": "DEMO-2026-5001", "course_id": 101,
+        "course_name": "Complete JavaScript DSA",
+        "student_name": "Rahul Verma", "email": "rahul@example.com", "phone": "98XXXXXX10",
+        "city": "Indore", "current_qualification": "Graduate", "experience_level": "Fresher",
+        "preferred_demo_type": "live", "preferred_date": "2026-11-05", "preferred_time": "18:00",
+        "message": "...", "custom_answers": {}, "consent_given": true,
+        "source": "instagram", "status": "pending", "assigned_to": null,
+        "admin_notes": null, "scheduled_at": null, "meeting_link": null,
+        "attended": null, "follow_up_at": null, "converted_to_enrollment": false,
+        "created_at": "2026-10-23T06:50:00Z"
+      }
+    ]
+  },
+  "pagination": { "page": 1, "limit": 20, "total": 85, "total_pages": 5 }
+}
+PATCH /api/admin/demo-requests/:id body (sab optional)
+Field
+Type
+Rule
+status
+enum
+pending, contacted, scheduled, completed, cancelled
+assigned_to
+int
+Counsellor ya admin user id
+scheduled_at
+datetime
+status scheduled par zaruri
+meeting_link
+string
+Valid URL
+admin_notes
+string
+
+
+follow_up_at
+datetime
+
+
+attended
+bool
+completed par
+
+Har change demo_request_activity_log me jata hai (old_status, new_status, note, performed_by). Bulk body: { "ids": [1,2,3], "status": "contacted", "assigned_to": 4 }. Convert body: { "batch_id": 1, "access_expires_at": "2027-10-23" }; ye course_enrollments row banata hai (enrollment_source = demo_convert) aur request par converted_to_enrollment = true karta hai.
+Status flow: pending → contacted → scheduled → completed (ya kisi bhi stage se cancelled). Peeche wale status par wapas jana sirf admin ko allowed.
+14. Eligibility APIs
+Tables: course_eligibility_rules (rules), eligibility_checks (student ke jawab aur result), course_points (required skills).
+Result hamesha backend calculate karta hai, frontend par nahi. Har course me age ya degree restriction zaruri nahi; beginner courses ke liye rules open rakho.
+Method
+Endpoint
+Access
+Kaam
+GET
+/api/courses/:id/eligibility
+Public
+Form ke liye rules aur questions (sensitive logic nahi)
+POST
+/api/courses/:id/eligibility-checks
+user
+Jawab bhejo, result lo
+GET
+/api/me/courses/:id/eligibility-result
+user
+Apna last result
+GET
+/api/admin/courses/:id/eligibility-rules
+admin
+Rules
+PUT
+/api/admin/courses/:id/eligibility-rules
+admin
+Rules save (upsert)
+GET
+/api/admin/courses/:id/eligibility-checks
+admin
+Students ke results (naam aur email ke saath)
+
+14.1 Admin: rules
+PUT body
+Field
+Type
+Required
+Rule
+eligibility_enabled
+bool
+Yes
+false ho to sab eligible
+minimum_qualification
+enum
+No
+any, 10th, 12th, diploma, graduate, post_graduate
+minimum_percentage
+decimal
+No
+0 se 100
+eligible_streams
+string[]
+No
+["Any"] ya ["CS", "IT"]
+minimum_age, maximum_age
+int
+No
+max, min se bada
+required_skills
+string[]
+No
+e.g. Basic computer knowledge
+experience_required
+enum
+No
+fresher_allowed, experience_required
+custom_questions
+object[]
+No
+{key, question, field_type, options, required, correct_answers}
+disclaimer
+string
+No
+Conditions aur limitations
+
+14.2 Student: check
+POST /api/courses/:id/eligibility-checks body
+Field
+Type
+Required
+Rule
+answers
+object
+Yes
+{ qualification, percentage, stream, age, experience, ...custom question key: value }
+
+Backend logic: rules uthao → har rule compare karo (qualification ka level order: 10th < 12th < diploma < graduate < post_graduate; percentage, stream, age range, custom questions) → agar koi fail ho to not_eligible aur fail hone ki wajah ka message → result eligibility_checks me save.
+{
+  "success": true,
+  "data": {
+    "id": 9001,
+    "result": "eligible",
+    "eligible": true,
+    "message": "Aap is course ke liye eligible hain.",
+    "failed_rules": [],
+    "checked_at": "2026-10-23T06:55:00Z"
+  }
+}
+Not eligible par: result: "not_eligible", failed_rules: ["minimum_percentage"], message jaise Is course ke liye kam se kam 50% chahiye. Student dobara check kar sakta hai; har attempt save hota hai, GET .../eligibility-result sabse naya deta hai. Eligibility enabled ho to enrollment aur demo booking se pehle latest result eligible hona chahiye (demo ke liye ye optional rakh sakte ho).
+15. Enrollment, wishlist aur reviews APIs
+Payment abhi plan me nahi hai, isliye enrollment teen tareeke se hota hai: (1) free course par student khud enroll kare, (2) admin manually enroll kare (jab student ne bahar payment kar diya ho), (3) demo request convert karke. Payment module baad me aaye to bas ek naya orders flow course_enrollments row banayega; table change nahi hogi.
+15.1 Enrollments
+Tables: course_enrollments, lesson_progress, course_batches (seats).
+Method
+Endpoint
+Access
+Kaam
+POST
+/api/courses/:id/enroll
+user
+Sirf free course (is_free = true) par self enroll
+GET
+/api/me/enrollments
+user
+Mere courses
+GET
+/api/me/courses/:id/curriculum
+user (enrolled)
+Lessons aur apna progress
+POST
+/api/me/lessons/:lessonId/progress
+user (enrolled)
+Progress save
+GET
+/api/admin/enrollments
+admin
+List. Filters: course_id, user_id, status, source, from_date, to_date, search, page, limit
+POST
+/api/admin/enrollments
+admin
+Manual enroll
+PATCH
+/api/admin/enrollments/:id
+admin
+Access extend, cancel, batch change
+
+POST /api/courses/:id/enroll body: { "batch_id": 1 } (batch ho to). Checks: login, course published, free hai, enrollment_start_at aur enrollment_end_at ke andar, enrollment_limit pura nahi hua, eligibility pass (agar enabled), pehle se enrolled nahi (409). Success par enrollment_status = active, access_expires_at = aaj + access_duration_days (lifetime ho to null), batch ki seats ek kam, course.enrollment_count + 1.
+POST /api/admin/enrollments body
+Field
+Type
+Required
+Rule
+user_id
+int
+Yes
+Existing user
+course_id
+int
+Yes
+Existing course
+batch_id
+int
+No
+Seats available ho
+access_expires_at
+datetime
+No
+Khali = course ki default validity
+notes
+string
+No
+Payment ka reference ya remark
+
+PATCH body: enrollment_status (active, expired, cancelled, completed), access_expires_at, batch_id, notes.
+GET /api/me/enrollments item: {enrollment_id, course {id, course_name, slug, thumbnail_url}, enrollment_status, enrolled_at, access_expires_at, progress_percentage, last_lesson_id}.
+POST /api/me/lessons/:lessonId/progress body: { "completed": true, "last_position_seconds": 540 }. Saare lessons complete hone par enrollment completed ho jata hai.
+15.2 Wishlist
+Table: wishlists.
+Method
+Endpoint
+Access
+Kaam
+GET
+/api/me/wishlist
+user
+Meri wishlist (course cards)
+POST
+/api/courses/:id/wishlist
+user
+Add (dobara add karo to koi error nahi, same result)
+DELETE
+/api/courses/:id/wishlist
+user
+Remove
+
+Add aur remove par courses.wishlist_count update hota hai.
+15.3 Reviews
+Table: course_reviews.
+Method
+Endpoint
+Access
+Kaam
+GET
+/api/courses/:id/reviews
+Public
+Approved reviews (section 9)
+POST
+/api/courses/:id/reviews
+user (enrolled)
+Review do
+PATCH
+/api/me/reviews/:id
+user
+Apna review edit (dobara moderation)
+DELETE
+/api/me/reviews/:id
+user
+Apna review hatao
+GET
+/api/admin/reviews
+admin
+Filters: moderation_status, course_id, rating, page, limit
+PATCH
+/api/admin/reviews/:id/moderate
+admin
+Approve ya reject
+
+POST review body: rating (int 1 se 5, required), title (string, max 150), text (string, max 2000). Ek user ek course par ek hi review de sakta hai (409). Naya review pending rehta hai.
+Moderate body: { "moderation_status": "approved", "reason": "optional" }.
+Approve, reject ya delete par rating_avg aur rating_count backend reviews se dobara calculate karta hai; admin ya user se arbitrary rating counts kabhi nahi lete.
+16. Views, analytics aur dashboard APIs
+Tables: course_views (raw events), course_analytics_daily (roz ka summary), courses (total counters).
+Do cheezein alag samjho: total_views (page kitni baar khula) aur unique_visitors (alag alag session ya logged-in user, roz ke hisaab se). Ye hamesha asli unique logo ki exact ginti nahi hoti. Anonymous visitor ko pakki pehchaan ke saath individual nahi bana sakte, isliye sirf session_id store hota hai.
+16.1 Track APIs (public)
+Method
+Endpoint
+Access
+Kaam
+POST
+/api/courses/:id/views
+optionalAuth
+Course view record
+POST
+/api/courses/:id/share
+Public
+Share count +1
+POST
+/api/courses/:id/enquiry-click
+Public
+Enquiry button click count
+
+POST /api/courses/:id/views body
+Field
+Type
+Required
+Rule
+session_id
+string
+Yes
+Frontend ka random id (localStorage), max 64
+referrer
+string
+No
+document.referrer
+source
+enum
+No
+organic, direct, social, campaign
+device_type
+enum
+No
+desktop, mobile, tablet
+
+Backend: ek session_id + course ka same din me ek hi baar count karo (dusri baar 200 do par count mat badhao). course_views me row, courses.total_views + 1, aur naya session ho to unique_visitors + 1. Bots (user-agent check) ignore karo. Rate limit lagao.
+Response: { "success": true, "message": "View recorded" }. Total count public response me nahi lautate; course detail API se milta hai.
+16.2 Admin analytics
+Role: admin, super_admin.
+Method
+Endpoint
+Kaam
+GET
+/api/admin/courses/:id/analytics
+Ek course ka analytics
+GET
+/api/admin/analytics/courses
+Saare courses ka comparison (top courses)
+GET
+/api/admin/dashboard
+Overall summary
+
+GET /api/admin/courses/:id/analytics query: from (date), to (date, default last 30 din), group_by (day, week, month).
+{
+  "success": true,
+  "data": {
+    "course_id": 101,
+    "range": { "from": "2026-10-01", "to": "2026-10-23" },
+    "totals": {
+      "total_views": 15200, "unique_visitors": 9800,
+      "enquiry_count": 120, "demo_request_count": 85,
+      "wishlist_count": 210, "share_count": 60,
+      "enrollment_count": 340, "conversion_rate": 3.47,
+      "last_viewed_at": "2026-10-23T06:58:00Z"
+    },
+    "daily": [
+      { "date": "2026-10-22", "total_views": 620, "unique_visitors": 410, "demo_request_count": 5, "enrollment_count": 12 }
+    ],
+    "sources": { "organic": 5200, "direct": 3100, "social": 4200, "campaign": 2700 },
+    "devices": { "mobile": 9100, "desktop": 5600, "tablet": 500 },
+    "demo_funnel": { "pending": 20, "contacted": 15, "scheduled": 25, "completed": 20, "cancelled": 5, "converted": 12 }
+  }
+}
+\text{Conversion Rate} = \frac{\text{Enrollments}}{\text{Unique Visitors}} \times 100
+GET /api/admin/analytics/courses query: from, to, category_id, sort_by (views, demo_requests, enrollments, conversion), limit. Item: course_id, course_name, total_views, unique_visitors, demo_request_count, enrollment_count, conversion_rate.
+GET /api/admin/dashboard response data: total_courses {published, draft, archived}, total_users, new_users_last_30_days, total_enrollments, demo_requests {total, pending, today}, top_courses[], recent_demo_requests[], recent_enrollments[], views_last_30_days [].
+Performance: har view par sirf ek INSERT aur ek counter UPDATE; bhaari queries (daily summary, top courses) raat ke cron job se course_analytics_daily me aggregate hoti hain. Purane course_views rows (jaise 180 din se purane) retention policy ke hisaab se delete ya anonymize karo.
+17. Users, audit logs aur notifications APIs
+17.1 Users (admin management)
+Tables: users, refresh_tokens.
+Method
+Endpoint
+Access
+Kaam
+GET
+/api/admin/users
+admin
+Users list
+GET
+/api/admin/users/:id
+admin
+User detail: profile, enrollments, demo requests, eligibility results
+PATCH
+/api/admin/users/:id/status
+admin
+Block ya unblock
+PATCH
+/api/admin/users/:id/role
+super_admin
+Role change
+POST
+/api/admin/staff
+super_admin
+Counsellor ya admin account banana (email se, pehli Google login par link hota hai)
+DELETE
+/api/admin/users/:id
+super_admin
+Soft delete
+
+GET /api/admin/users filters: role, status, search (naam, email, phone), from_date, to_date, sort, page, limit. Item: id, name, email, phone, role, status, avatar_url, last_login_at, created_at, enrollment_count.
+PATCH status body: { "status": "blocked", "reason": "Spam demo requests" }. Block par us user ke saare refresh tokens revoke hote hain.
+PATCH role body: { "role": "counsellor" } (user, counsellor, admin). super_admin banana sirf database seed se. Aakhri super_admin ka role badalna ya delete karna block hai.
+POST /api/admin/staff body: email (required), name (required), role (counsellor ya admin, required).
+17.2 Audit logs
+Table: audit_logs.
+Method
+Endpoint
+Access
+Kaam
+GET
+/api/admin/audit-logs
+super_admin
+Admin ke saare actions
+
+Filters: actor_id, action, entity_type, entity_id, from_date, to_date, page, limit.
+Item: {id, actor {id, name, role}, action (create, update, delete, publish, role_change ...), entity_type (course, category, user ...), entity_id, old_value, new_value, ip_address, created_at}. auditLogger middleware har admin write API ke baad automatic entry banata hai. Audit logs kabhi edit ya delete nahi hote.
+17.3 Notifications queue
+Table: notifications. Abhi koi email ya WhatsApp provider nahi lagana, isliye events sirf queue me save hote hain aur baad me sender jod sakte hain.
+Method
+Endpoint
+Access
+Kaam
+GET
+/api/me/notifications
+user
+Apni in-app notifications
+PATCH
+/api/me/notifications/:id/read
+user
+Read mark
+GET
+/api/admin/notifications
+admin
+Queue dekhna. Filters: status, channel, type, page, limit
+
+Events jo queue me jayenge: demo_request_created (admin ko), demo_request_status_changed (student ko), demo_scheduled (meeting link ke saath), demo_reminder, enrollment_created, enrollment_expiring_soon, review_approved.
+18. Key flows end to end
+Ye flows dikhate hain ki ek request backend ke andar kaise chalti hai aur kaun si table se judti hai.
+18.1 Browse: category se course tak
+Home par GET /api/categories?include=subcategories se menu aur category cards bante hain.
+Category click par GET /api/categories/:slug category page aur uski subcategories deta hai.
+Subcategory click par GET /api/categories/:catSlug/subcategories/:subSlug us subcategory ke saare courses cards ke saath deta hai (filters, sort, pagination).
+Course card click par GET /api/courses/:slug poori detail deta hai.
+18.2 Course page open aur view count
+GET /api/courses/:slug: slug se course dhundo; purana slug ho to 301; draft ya inactive parent ho to 404.
+Offer ki validity check karke offer_price aur discount_percentage nikalo.
+Course ke saare sections join karke ek JSON banao; login ho to user_state jodo.
+Frontend page khulne par ek baar POST /api/courses/:id/views bhejta hai (ek session, ek din, ek count).
+Raat ka cron job course_analytics_daily me summary likhta hai.
+18.3 Demo booking se enrollment tak
+[embed: node/fe6cc1f8-354d]
+Guest ko pehle Google login karna padta hai aur wo wapas isi course page par aata hai. Form submit hone par backend saari checks chalata hai (demo band to nahi, slot bhara to nahi, duplicate ya spam to nahi); pass hone par demo_requests me pending row banti hai. Counsellor status badalta hai, aur demo ke baad admin use enrollment me convert karta hai.
+18.4 Eligibility check
+Student POST /api/courses/:id/eligibility-checks me jawab bhejta hai.
+Backend rules DB se uthata hai aur khud compare karta hai.
+Result eligible ya not_eligible message ke saath wapas aata hai aur eligibility_checks me save hota hai.
+18.5 Free enrollment aur material access
+Student login karke POST /api/courses/:id/enroll (free course) bhejta hai; admin manual enroll ya demo convert bhi isi course_enrollments table me row banata hai.
+Backend eligibility, enrollment window, seats, duplicate check karta hai.
+GET /api/courses/:id/materials active enrollment dekhta hai; enrolled ho to private files ke signed links, warna sirf free ya preview files.
+GET .../download token aur expiry verify karke file stream karta hai.
+18.6 Admin: course banana aur publish karna
+Admin subcategory chunta hai aur POST /api/admin/courses se draft banata hai.
+Uploads se thumbnail aur brochure, phir SEO, pricing, offers, curriculum, materials, batches, demo settings, eligibility rules ek ek section me save hote hain.
+PATCH /api/admin/courses/:id/status (published) required fields check karta hai; fail ho to missing fields ki list ke saath 400.
+Pass hone par published_at set hota hai aur course public APIs me aa jata hai.
+Har step audit_logs me jata hai.
+18.7 Course ya subcategory move karna
+Admin PATCH /api/admin/courses/:id me nayi subcategory_id bhejta hai.
+Backend category_id naye parent se set karta hai.
+Purana slug aur path course_slug_history me save hota hai, aur purane URL par 301 redirect chalta hai.
+Subcategory delete tabhi hoti hai jab usme active course na ho.
+19. Security, background jobs, validation aur build order
+19.1 Security checklist
+Google ID token backend par verify karo; role hamesha DB se lo.
+JWT httpOnly + secure + sameSite cookies; refresh token hash karke store, har refresh par rotate.
+Admin routes par authorize('admin'), demo leads par counsellor bhi; super_admin sirf role, staff aur audit ke liye.
+Public APIs me draft, archived, deleted records kabhi nahi; student ka phone, email kabhi nahi.
+Price, discount, rating, views, seats, counters sirf backend calculate kare; request body se mass assignment nahi.
+Saari SQL parameterized; HTML description sanitize karo (XSS).
+helmet, CORS sirf FRONTEND_URL, body size limit (1 MB JSON).
+Rate limits: login 10 per 15 min per IP, demo form 5 per hour per IP, views 60 per min per IP, general API 300 per 15 min.
+Paid files private folder me, signed expiring links ke saath; upload par type aur size check.
+Soft delete har jagah; hard delete nahi.
+Har admin write ka audit log.
+Privacy: demo form me consent aur consent_at store karo; course_views ka retention policy; user ke data delete ya export request ka tareeka rakho.
+19.2 Background jobs (node-cron)
+Job
+Kab chalta hai
+Kaam
+offer_expiry
+Har ghante
+Expired offers is_active = false karo
+analytics_aggregate
+Roz raat 2 AM
+course_views aur events se course_analytics_daily banao, counters sync karo
+enrollment_expiry
+Roz raat 1 AM
+access_expires_at guzar gaya to status expired
+enrollment_expiring_notice
+Roz subah
+7 din me expire hone walon ki notification queue karo
+demo_reminder
+Har 10 min
+scheduled_at se 60 minute pehle reminder queue karo
+token_cleanup
+Roz
+Expired ya revoked refresh tokens hatao
+views_retention
+Hafte me ek baar
+Purane course_views rows delete ya anonymize
+rating_resync
+Roz
+rating_avg, rating_count reviews se verify karo
+
+19.3 Validation rules (business)
+course_code, slug unique; slug lowercase, hyphen, sirf a-z 0-9.
+offer_price kabhi price se zyada nahi.
+Offer expire hote hi public response me purani offer price valid nahi.
+Course publish tabhi jab required fields, thumbnail, price, SEO aur content checks pass hon.
+Slug badalne par course_slug_history me entry aur purane URL par 301 redirect.
+Subcategory ya category me active children hon to delete block (409).
+Course ka category_id hamesha subcategory se aaye, client se nahi.
+Ek user ke liye ek course par ek hi active demo request, ek enrollment, ek review.
+Batch seats 0 hone par enrollment reject (409).
+Phone regex ^[6-9][0-9]{9}$; email valid format; consent demo form me required.
+19.4 Build order
+Step
+Kya banana hai
+Iske baad kya chalega
+1
+Project setup, DB connection, migrations, error handler, response helper
+Server aur empty tables
+2
+Auth: Google login, tokens, roles, super_admin seed
+Login aur admin access
+3
+Categories, subcategories, instructors (admin CRUD + public)
+Home aur category pages
+4
+Uploads (local)
+Images ke saath courses
+5
+Courses CRUD, publish checks, course detail API, subcategory page API
+Poora catalog dikhega
+6
+SEO, pricing, offers, FAQs, benefits, curriculum, batches
+Course page poora
+7
+Materials aur signed downloads
+Brochure aur study material
+8
+Demo settings, demo requests, admin leads
+Booking aur counsellor work
+9
+Eligibility
+Check form
+10
+Enrollments (free, manual, demo convert), progress
+My courses
+11
+Wishlist, reviews, search
+Engagement
+12
+Views, analytics, dashboard, cron jobs
+Reports
+13
+Audit logs, notifications queue, users management, tests
+Production ready
+
+
+
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-10-24T12:19:05+05:30.
+
+The user's current state is as follows:
+Active Document: d:\Course_plateform\backend\.env (LANGUAGE_UNSPECIFIED)
+Cursor is on line: 18
+Other open documents:
+- d:\Course_plateform\powershell.cmd (LANGUAGE_UNSPECIFIED)
+- d:\Course_plateform\backend\scripts\verify-db.js (LANGUAGE_JAVASCRIPT)
+- d:\Course_plateform\backend\package.json (LANGUAGE_JSON)
+- d:\Course_plateform\backend\.env (LANGUAGE_UNSPECIFIED)
+- d:\Course_plateform\backend\powershell.cmd (LANGUAGE_UNSPECIFIED)
+</ADDITIONAL_METADATA>
