@@ -13,6 +13,7 @@ concurrency:
 jobs:
   deploy:
     name: Sync Backend via FTP/FTPS
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -52,7 +53,9 @@ jobs:
           dangerous-clean-slate: false
           
           # File and directory exclusions:
-          # Protects secrets, server uploads, runtime logs, dependency trees, and dev artifacts
+          # Protects secrets, server uploads, runtime logs, dependency trees, and dev artifacts.
+          # Note: Root storage and artifact directories are anchored (uploads/**, logs/**)
+          # so that nested source code modules (e.g. src/modules/uploads/**) are not accidentally excluded.
           exclude: |
             **/.git*
             **/.git*/**
@@ -61,13 +64,14 @@ jobs:
             **/.env
             **/.env*
             **/.env.*
-            **/uploads/**
-            **/logs/**
-            **/coverage/**
-            **/scratch/**
-            **/tests/**
+            uploads/**
+            logs/**
+            coverage/**
+            scratch/**
+            tests/**
             **/*.log
             **/.DS_Store
             **/powershell.cmd
             **/*.tmp
             **/*.temp
+

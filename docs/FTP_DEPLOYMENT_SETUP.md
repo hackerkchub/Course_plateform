@@ -156,11 +156,11 @@ exclude: |
   **/.env
   **/.env*
   **/.env.*
-  **/uploads/**
-  **/logs/**
-  **/coverage/**
-  **/scratch/**
-  **/tests/**
+  uploads/**
+  logs/**
+  coverage/**
+  scratch/**
+  tests/**
   **/*.log
   **/.DS_Store
   **/powershell.cmd
@@ -171,12 +171,12 @@ exclude: |
 | Exclusion Rule | Category | Protection Rationale |
 |---|---|---|
 | `**/.env`, `**/.env*`, `**/.env.*` | **Security / Secrets** | Prevents overwriting production database credentials, JWT secrets, and API keys with local development configuration. |
-| `**/uploads/**` | **User Data Protection** | Ensures that uploaded student files, course thumbnails, and private lecture materials on the server are **never overwritten or deleted**. |
-| `**/logs/**`, `**/*.log` | **Server Telemetry** | Protects active server log files from being modified or wiped out. |
+| `uploads/**` | **User Data Protection** | Ensures uploaded student files and media on disk are **never overwritten or deleted**. Note: Anchored to root so application code like `src/modules/uploads/**` is preserved. |
+| `logs/**`, `**/*.log` | **Server Telemetry** | Protects active server log files from being modified or wiped out. |
 | `**/node_modules/**` | **Performance / Binary Safety** | Prevents uploading thousands of Windows-compiled binaries that would break on Linux hosting. |
 | `**/.git*`, `**/.github/**` | **Repository Metadata** | Internal VCS metadata not needed for Node.js execution. |
-| `**/tests/**`, `**/coverage/**` | **Development Artifacts** | Test suites and test coverage files are not needed in production. |
-| `**/scratch/**` | **Temporary Files** | Ad-hoc development inspection scripts are excluded from the server. |
+| `tests/**`, `coverage/**` | **Development Artifacts** | Test suites and test coverage files are not needed in production. |
+| `scratch/**` | **Temporary Files** | Ad-hoc development inspection scripts are excluded from the server. |
 
 ### 5.2 Destructive Deletion Prevention
 
