@@ -5,15 +5,36 @@ import logger from './logger.js';
 let pool = null;
 let isMockMode = false;
 
+export const ALLOWED_PRODUCTION_DATABASES = Object.freeze([
+  'course_platform_db',
+  'softmaxs_course_platform_db',
+]);
+
+/**
+ * Validates whether a database name is allowed for the specified environment.
+ * In production, only explicitly allowlisted databases are permitted.
+ * @param {string} dbName
+ * @param {string} nodeEnv
+ * @returns {boolean}
+ */
+export function isAllowedDatabase(dbName, nodeEnv = env.NODE_ENV) {
+  if (nodeEnv !== 'production') {
+    return true;
+  }
+  return ALLOWED_PRODUCTION_DATABASES.includes(dbName);
+}
+
 function getPool() {
   if (isMockMode) {
     return null;
   }
 
   if (!pool) {
-    // Strictly connect to course_platform_db. Guard against connecting to any other db
-    if (env.DB_NAME !== 'course_platform_db' && env.NODE_ENV === 'production') {
-      throw new Error(`Invalid database target: ${env.DB_NAME}. Must be course_platform_db`);
+    // Strictly connect to approved databases. Guard against connecting to any other db in production
+    if (env.NODE_ENV === 'production' && !ALLOWED_PRODUCTION_DATABASES.includes(env.DB_NAME)) {
+      throw new Error(
+        `Invalid database target: ${env.DB_NAME}. Must be one of: ${ALLOWED_PRODUCTION_DATABASES.join(', ')}`
+      );
     }
 
     pool = mysql.createPool({

@@ -17,11 +17,16 @@ const config = {
   database: process.env.DB_NAME || 'course_platform_db',
 };
 
+const ALLOWED_DATABASES = Object.freeze([
+  'course_platform_db',
+  'softmaxs_course_platform_db',
+]);
+
 async function seedSuperAdmin() {
   console.log('\n--- Super Admin Idempotent Seeder ---');
 
-  if (config.database !== 'course_platform_db') {
-    throw new Error(`Safety abort: Target database must be course_platform_db. Got: ${config.database}`);
+  if (!ALLOWED_DATABASES.includes(config.database)) {
+    throw new Error(`Safety abort: Target database must be one of: ${ALLOWED_DATABASES.join(', ')}. Got: ${config.database}`);
   }
 
   const superAdminEmail = (process.env.SUPER_ADMIN_EMAIL || '').trim().toLowerCase();
@@ -33,8 +38,8 @@ async function seedSuperAdmin() {
 
   try {
     const [dbRows] = await connection.query('SELECT DATABASE() AS current_db');
-    if (dbRows[0]?.current_db !== 'course_platform_db') {
-      throw new Error(`Safety abort: active db is not course_platform_db`);
+    if (!ALLOWED_DATABASES.includes(dbRows[0]?.current_db)) {
+      throw new Error(`Safety abort: active db is not in approved database allowlist: ${dbRows[0]?.current_db}`);
     }
 
     // Check if user already exists

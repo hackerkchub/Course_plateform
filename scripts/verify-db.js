@@ -18,6 +18,11 @@ const config = {
   connectTimeout: 5000,
 };
 
+const ALLOWED_DATABASES = Object.freeze([
+  'course_platform_db',
+  'softmaxs_course_platform_db',
+]);
+
 async function verifyDatabaseConnection() {
   console.log('\n--- Dedicated MySQL Read-Only Verification ---');
   console.log(`Target Host:     ${config.host}:${config.port}`);
@@ -25,8 +30,8 @@ async function verifyDatabaseConnection() {
   console.log(`Target Database: ${config.database}`);
   console.log('Password:        [PROTECTED - NOT DISPLAYED]');
 
-  if (config.database !== 'course_platform_db') {
-    console.error(`\n❌ ERROR: Target database is '${config.database}'. It must strictly be 'course_platform_db'.`);
+  if (!ALLOWED_DATABASES.includes(config.database)) {
+    console.error(`\n❌ ERROR: Target database is '${config.database}'. It must strictly be one of: ${ALLOWED_DATABASES.join(', ')}.`);
     process.exit(1);
   }
 
@@ -50,8 +55,8 @@ async function verifyDatabaseConnection() {
     const charset = dbRows[0]?.charset;
     const collation = dbRows[0]?.collation;
 
-    if (currentDb !== 'course_platform_db') {
-      console.error(`\n❌ ERROR: Connected to unexpected database '${currentDb}'. Expected 'course_platform_db'.`);
+    if (!ALLOWED_DATABASES.includes(currentDb)) {
+      console.error(`\n❌ ERROR: Connected to unexpected database '${currentDb}'. Expected one of: ${ALLOWED_DATABASES.join(', ')}.`);
       process.exit(1);
     }
 
